@@ -4,200 +4,149 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover, user-scalable=no">
   <title>首页 - AGISchool</title>
-  <meta name="keywords" content="AGISchool, AI教育平台, 零基础学人工智能, 生成式大模型课程, AI实验工具平台">
-  <meta name="description" content="AGISchool致力于普及和传播AI知识，帮助更多理念相同之人成为AI时代的领先者与践行者。">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+  <meta name="keywords" content="AGISchool, AGI School, agischool, agi school, AI 教育平台, 零基础学人工智能, 生成式大模型课程, 计算机视觉实践, AI实验工具平台, 清华北大教学团队, 无需编程学AI, AI技术普惠化">
+  <meta name="description" content="AGISchool是致力于普及和传播AI知识，做一个时代的参与者、启蒙者，帮助更多理念相同之人成为AI时代的领先者与践行者。">
+  <link rel="icon" type="image/svg+xml" href="https://agi-assets.oss-cn-beijing.aliyuncs.com/favicon.svg">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div id="app">
     <!-- Header -->
-    <header class="header">
+    <header class="header" id="header">
       <div class="container header-inner">
         <a href="/" class="logo">
-          <span class="logo-text">AGI<span class="logo-highlight">School</span></span>
+          <img src="https://agi-assets.oss-cn-beijing.aliyuncs.com/playground/logo.svg" alt="AGISchool" class="logo-img">
         </a>
         <nav class="nav" id="nav">
           <div class="nav-list">
             <a href="/" class="nav-link active">首页</a>
-            <a href="#courses" class="nav-link">AI课程介绍</a>
-            <a href="#learning" class="nav-link">项目式学习</a>
-            <a href="#business" class="nav-link">商务合作</a>
-            <a href="#about" class="nav-link">关于我们</a>
-            <a href="#platform" class="nav-link">教学平台</a>
+            <a href="/courses/" class="nav-link">AI课程介绍</a>
+            <a href="/learning/" class="nav-link">项目式学习</a>
+            <a href="/business/" class="nav-link">商务合作</a>
+            <a href="/about/" class="nav-link">关于我们</a>
+            <a href="/platform/" class="nav-link">教学平台</a>
           </div>
         </nav>
-        <button class="hamburger" id="hamburger" type="button" aria-label="菜单">
-          <span class="hamburger-icon">
-            <span></span>
-            <span></span>
-            <span></span>
-          </span>
-        </button>
+        <div class="header-right">
+          <button type="button" class="hamburger" id="hamburger">
+            <span class="hamburger-icon">
+              <span></span>
+              <span></span>
+              <span></span>
+            </span>
+          </button>
+        </div>
       </div>
     </header>
 
-    <!-- Hero Section -->
-    <section class="hero">
+    <!-- Section 1: Hero -->
+    <section class="section-hero">
       <div class="container hero-inner">
-        <h1 class="hero-title fade-in-left">帮助更多理念相同之人<br>成为AI时代的<br>领先者与践行者。</h1>
-        <div class="hero-image fade-in-right">
-          <div class="hero-image-circle">
-            <div class="hero-image-placeholder">
-              <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style="stop-color:#8c81d3;stop-opacity:0.3" />
-                    <stop offset="100%" style="stop-color:#7260af;stop-opacity:0.6" />
-                  </linearGradient>
-                </defs>
-                <circle cx="100" cy="100" r="95" fill="url(#grad1)" />
-                <text x="100" y="90" text-anchor="middle" fill="#fff" font-size="40">🧠</text>
-                <text x="100" y="130" text-anchor="middle" fill="#fff" font-size="14" font-weight="bold">AI Education</text>
-              </svg>
-            </div>
-          </div>
-        </div>
+        <h1 class="hero-title" data-animate="fade-right">帮助更多理念相同之人成为AI时代的领先者与践行者。</h1>
+        <img src="https://agischool.com.cn/images/home_image_01.png" alt="" class="hero-image" data-animate="fade-left" loading="lazy">
       </div>
     </section>
 
-    <!-- Section: 未来基础技能 -->
-    <section class="section section-purple" id="courses">
+    <!-- Section 2: 未来基础技能 -->
+    <section class="section-purple">
       <div class="container section-inner">
-        <div class="section-image fade-in-left">
-          <div class="image-placeholder image-placeholder--light">
-            <svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
-              <rect width="400" height="300" rx="12" fill="#fff" opacity="0.15"/>
-              <text x="200" y="130" text-anchor="middle" fill="#fff" font-size="60">📚</text>
-              <text x="200" y="180" text-anchor="middle" fill="#fff" font-size="18">AI 课程体系</text>
-            </svg>
-          </div>
+        <div class="section-img-wrap" data-animate="fade-right">
+          <img src="https://agischool.com.cn/images/home_image_02.jpeg" alt="" class="section-img img-rotate-left" loading="lazy">
         </div>
-        <h2 class="section-title fade-in-right">未来，使用AI去解决问题<br>将成为基础技能。</h2>
+        <h2 class="section-heading" data-animate="fade-left">未来，使用AI去解决问题将成为基础技能。</h2>
       </div>
     </section>
 
-    <!-- Section: 孩子的AI启蒙 -->
-    <section class="section section-white">
+    <!-- Section 3: 孩子的AI启蒙 -->
+    <section class="section-white">
       <div class="container section-inner">
-        <div class="section-text fade-in-left">
-          <h2 class="section-title section-title--dark">孩子的AI启蒙</h2>
-          <p class="section-desc">对于孩子们来说，他们正处在一个"AI原生"的时代。因此，他们应该从教育的早期阶段就开始接触和学习AI的底层原理。通过构建AI思维，使其成为基础教育和素养的一部分。只有这样，他们才能在未来的各行各业中使用AI进行创新，最终成为能够驾驭AI的人，而不是被AI所控制的人。</p>
+        <div class="section-text" data-animate="fade-right">
+          <h2 class="section-heading heading-dark">孩子的AI启蒙</h2>
+          <p class="section-desc">对于孩子们来说，他们正处在一个"AI原生"的时代。因此，他们应该从教育的早期阶段就开始接触和学习AI的底层原理。通过构建AI 思维，使其成为基础教育和素养的一部分。只有这样，他们才能在未来的各行各业中使用AI进行创新，最终成为能够驾驭AI的人，而不是被AI所控制的人。</p>
         </div>
-        <div class="section-image fade-in-right">
-          <div class="image-placeholder image-placeholder--purple">
-            <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
-              <rect width="400" height="400" rx="12" fill="#7260af" opacity="0.1"/>
-              <text x="200" y="180" text-anchor="middle" fill="#7260af" font-size="60">👶</text>
-              <text x="200" y="240" text-anchor="middle" fill="#7260af" font-size="18">AI 启蒙教育</text>
-            </svg>
-          </div>
-        </div>
+        <img src="https://agischool.com.cn/images/home_image_03.png" alt="" class="section-img-square img-rotate-right" data-animate="fade-left" loading="lazy">
       </div>
     </section>
 
-    <!-- Section: AI启蒙 -->
-    <section class="section section-purple" id="learning">
+    <!-- Section 4: AI启蒙 -->
+    <section class="section-purple">
       <div class="container section-inner">
-        <div class="section-image fade-in-left">
-          <div class="image-placeholder image-placeholder--light">
-            <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
-              <rect width="400" height="400" rx="12" fill="#fff" opacity="0.15"/>
-              <text x="200" y="180" text-anchor="middle" fill="#fff" font-size="60">🔬</text>
-              <text x="200" y="240" text-anchor="middle" fill="#fff" font-size="18">项目式学习</text>
-            </svg>
-          </div>
-        </div>
-        <div class="section-text fade-in-right">
-          <h2 class="section-title">AI启蒙</h2>
+        <img src="https://agischool.com.cn/images/home_image_04.jpeg" alt="" class="section-img-square img-rotate-left" data-animate="fade-right" loading="lazy">
+        <div class="section-text section-text-right" data-animate="fade-left">
+          <h2 class="section-heading">AI启蒙</h2>
           <p class="section-desc">AI启蒙学习包括理解模型通过数据和算法被训练的过程，了解数据与AI的关系，以及AI的学习方式和人类的区别等基础知识。</p>
           <p class="section-desc">AI涉及多个技术领域，每个领域解决特定问题，例如视觉、声音、文本和表格预测等模型。AI启蒙帮助大家理解不同模型的训练过程，便于在实际问题中选择合适的技术和工具。</p>
         </div>
       </div>
     </section>
 
-    <!-- Section: 没学过编程 -->
-    <section class="section section-white" id="platform">
+    <!-- Section 5: 没学过编程 -->
+    <section class="section-white section-wide">
       <div class="container section-inner">
-        <div class="section-text fade-in-left">
-          <h2 class="section-title section-title--dark">没学过编程，可以学AI么？</h2>
-          <p class="section-desc section-desc--dark">编程技能在学习和应用AI中起着重要的作用，但并不是绝对必要的。</p>
-          <p class="section-desc section-desc--dark">我们开发了一套完整的AI教学平台，覆盖各类型的AI模型的训练过程，实现了零编码基础、零数据基础，就可以去理解AI世界，学习AI知识。</p>
+        <div class="section-text" data-animate="fade-right">
+          <h2 class="section-heading heading-dark">没学过编程，可以学AI么？</h2>
+          <p class="section-desc desc-dark">编程技能在学习和应用AI中起着重要的作用，但并不是绝对必要的。</p>
+          <p class="section-desc desc-dark">我们开发了一套完整的AI教学平台，覆盖各类型的AI模型的训练过程，实现了零编码基础、零数据基础，就可以去理解AI世界，学习AI知识。</p>
         </div>
-        <div class="section-image fade-in-right">
-          <div class="image-placeholder image-placeholder--purple">
-            <svg viewBox="0 0 500 300" xmlns="http://www.w3.org/2000/svg">
-              <rect width="500" height="300" rx="12" fill="#7260af" opacity="0.1"/>
-              <text x="250" y="130" text-anchor="middle" fill="#7260af" font-size="60">💻</text>
-              <text x="250" y="190" text-anchor="middle" fill="#7260af" font-size="18">零基础学AI平台</text>
-            </svg>
-          </div>
-        </div>
+        <img src="https://agischool.com.cn/images/home_image_05.jpg" alt="" class="section-img-wide" data-animate="fade-left" loading="lazy">
       </div>
     </section>
 
-    <!-- Section: AI、编程、机器人 -->
-    <section class="section section-purple section-last" id="business">
+    <!-- Section 6: AI、编程、机器人 -->
+    <section class="section-purple section-wide section-mb">
       <div class="container section-inner">
-        <div class="section-image fade-in-left">
-          <div class="image-placeholder image-placeholder--light">
-            <svg viewBox="0 0 500 300" xmlns="http://www.w3.org/2000/svg">
-              <rect width="500" height="300" rx="12" fill="#fff" opacity="0.15"/>
-              <text x="250" y="130" text-anchor="middle" fill="#fff" font-size="60">🤖</text>
-              <text x="250" y="190" text-anchor="middle" fill="#fff" font-size="18">AI · 编程 · 机器人</text>
-            </svg>
-          </div>
-        </div>
-        <div class="section-text fade-in-right">
-          <h2 class="section-title">AI、编程、机器人</h2>
+        <img src="https://agischool.com.cn/images/home_image_06.png" alt="" class="section-img-wide" data-animate="fade-right" loading="lazy">
+        <div class="section-text section-text-right text-center" data-animate="fade-left">
+          <h2 class="section-heading">AI、编程、机器人</h2>
           <div class="section-list">
-            <p class="section-desc"><strong>AI</strong>：模拟人类智能的技术，用于语音、图像识别等。</p>
-            <p class="section-desc"><strong>编程</strong>：编写代码指示计算机执行任务。</p>
-            <p class="section-desc"><strong>机器人</strong>：执行自动任务的机器，有物理实体。</p>
+            <p class="section-desc desc-sm"><strong>AI</strong>：模拟人类智能的技术，用于语音、图像识别等。</p>
+            <p class="section-desc desc-sm"><strong>编程</strong>：编写代码指示计算机执行任务。</p>
+            <p class="section-desc desc-sm"><strong>机器人</strong>：执行自动任务的机器，有物理实体。</p>
           </div>
         </div>
       </div>
     </section>
 
     <!-- Footer -->
-    <footer class="footer" id="about">
+    <footer class="footer">
       <div class="container">
         <div class="footer-main">
           <div class="footer-brand">
-            <div class="footer-logo">
-              <span class="logo-text logo-text--white">AGI<span class="logo-highlight">School</span></span>
+            <div class="footer-logo-wrap">
+              <img src="https://agi-assets.oss-cn-beijing.aliyuncs.com/playground/logo_white.svg" alt="AGISchool" class="footer-logo-img" loading="lazy">
+              <p class="footer-slogan">普及和传播AI知识</p>
             </div>
-            <p class="footer-slogan">普及和传播AI知识</p>
             <div class="footer-wechat">
-              <div class="wechat-icon">
-                <svg viewBox="0 0 24 24" fill="#fff" width="28" height="28">
-                  <path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM12.5 16.5C12.5 20 15.5 23 19 23c1 0 2-.3 2.8-.7l1.4.8c.1.1.2.1.3 0 .1 0 .2-.1.2-.3l-.3-1.1c1.3-1 2.1-2.5 2.1-4.2 0-3.5-3-6.5-6.5-6.5S12.5 14 12.5 16.5z"/>
-                </svg>
-              </div>
+              <span class="wechat-trigger">
+                <img src="https://agischool.com.cn/images/wechat.svg" alt="微信" class="wechat-icon">
+                <div class="wechat-popup">
+                  <img src="https://agischool.com.cn/images/qrcode.jpg" alt="微信公众号" class="wechat-qr" loading="lazy">
+                </div>
+              </span>
             </div>
           </div>
           <div class="footer-nav">
             <div class="footer-nav-group">
-              <a href="#courses" class="footer-nav-title">AI课程介绍</a>
+              <a href="/courses/" class="footer-nav-title">AI课程介绍</a>
             </div>
             <div class="footer-nav-group">
-              <a href="#learning" class="footer-nav-title">项目式学习</a>
+              <a href="/learning/" class="footer-nav-title">项目式学习</a>
             </div>
             <div class="footer-nav-group">
-              <a href="#business" class="footer-nav-title">商务合作</a>
+              <a href="/business/" class="footer-nav-title">商务合作</a>
             </div>
             <div class="footer-nav-group">
-              <a href="#about" class="footer-nav-title">关于我们</a>
-              <ul class="footer-nav-list">
-                <li><a href="#about">公司简介</a></li>
-                <li><a href="#about">愿景和使命</a></li>
-                <li><a href="#about">老师介绍</a></li>
-                <li><a href="#about">联系我们</a></li>
-                <li><a href="#about">加入我们</a></li>
+              <a href="/about/" class="footer-nav-title">关于我们</a>
+              <ul class="footer-sub-list">
+                <li><a href="/about/intro/">公司简介</a></li>
+                <li><a href="/about/vision-mission/">愿景和使命</a></li>
+                <li><a href="/about/teachers/">老师介绍</a></li>
+                <li><a href="/about/contact/">联系我们</a></li>
+                <li><a href="/about/jobs/">加入我们</a></li>
               </ul>
             </div>
             <div class="footer-nav-group">
-              <a href="#platform" class="footer-nav-title">教学平台</a>
+              <a href="/platform/" class="footer-nav-title">教学平台</a>
             </div>
           </div>
         </div>
@@ -210,15 +159,13 @@
   </div>
 
   <script>
-    // Mobile menu toggle
+    // Mobile nav toggle
     const hamburger = document.getElementById('hamburger');
     const nav = document.getElementById('nav');
     hamburger.addEventListener('click', () => {
       hamburger.classList.toggle('active');
       nav.classList.toggle('open');
     });
-
-    // Close menu on nav link click (mobile)
     document.querySelectorAll('.nav-link').forEach(link => {
       link.addEventListener('click', () => {
         hamburger.classList.remove('active');
@@ -230,23 +177,19 @@
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
-          entry.target.classList.add('visible');
+          entry.target.classList.add('aos-animate');
         }
       });
-    }, { threshold: 0.1 });
+    }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
 
-    document.querySelectorAll('.fade-in-left, .fade-in-right').forEach(el => {
+    document.querySelectorAll('[data-animate]').forEach(el => {
+      el.classList.add('aos-init');
       observer.observe(el);
     });
 
-    // Header scroll effect
-    const header = document.querySelector('.header');
+    // Header shadow on scroll
     window.addEventListener('scroll', () => {
-      if (window.scrollY > 10) {
-        header.classList.add('scrolled');
-      } else {
-        header.classList.remove('scrolled');
-      }
+      document.getElementById('header').classList.toggle('scrolled', window.scrollY > 10);
     });
   </script>
 </body>

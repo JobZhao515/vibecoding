@@ -82,11 +82,16 @@ h1, h2, h3, h4, h5, h6 { font-weight: normal; }
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 .logo img { height: 50px; }
 .logo-link {
   display: inline-flex;
   align-items: center;
+}
+.logo-link img {
+  display: block;
+  max-width: none;
 }
 .logo-text h1 {
   font-size: 20px;
@@ -251,6 +256,10 @@ h1, h2, h3, h4, h5, h6 { font-weight: normal; }
 .home-page .logo img {
   height: 68px;
   width: auto;
+}
+
+.home-page .logo {
+  min-width: 208px;
 }
 
 .home-page .main-nav > li > a {

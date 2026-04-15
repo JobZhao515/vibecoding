@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>vibecoding 发布入口</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f7fb;
+      color: #1f2937;
+    }
+
+    .wrap {
+      max-width: 860px;
+      margin: 64px auto;
+      padding: 0 20px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 30px;
+    }
+
+    p {
+      margin: 0;
+      color: #4b5563;
+      line-height: 1.7;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-top: 28px;
+    }
+
+    .card {
+      display: block;
+      padding: 20px;
+      border-radius: 14px;
+      border: 1px solid #e5e7eb;
+      background: #ffffff;
+      color: inherit;
+      text-decoration: none;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 32px rgba(15, 23, 42, 0.1);
+    }
+
+    .name {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .path {
+      color: #2563eb;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>vibecoding 站点入口</h1>
+    <p>当前仓库按分级目录发布，下面是可访问的项目入口。</p>
+    <div class="grid">
+      <a class="card" href="./portal/">
+        <div class="name">portal</div>
+        <div class="path">/portal/</div>
+      </a>
+      <a class="card" href="./lqky_website/">
+        <div class="name">lqky_website</div>
+        <div class="path">/lqky_website/</div>
+      </a>
+    </div>
+  </div>
+</body>
+</html>

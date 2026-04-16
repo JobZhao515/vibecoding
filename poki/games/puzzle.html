@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>创意解谜 - PlayHub</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}
+.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}
+.back-btn:hover{background:rgba(124,92,252,.4)}
+.game-title{font-size:1.1rem;font-weight:700}
+.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}
+.info{display:flex;gap:20px;font-size:.9rem}
+.info span{opacity:.5}
+.info b{color:#e879f9}
+canvas{border-radius:8px;background:#12081e;box-shadow:0 0 40px rgba(232,121,249,.1)}
+.controls{display:flex;gap:6px;margin-top:4px}
+.controls button{width:50px;height:50px;border-radius:12px;background:rgba(255,255,255,.08);font-size:1.2rem;border:1px solid rgba(255,255,255,.1)}
+.controls button:hover{background:rgba(255,255,255,.15)}
+.btns{display:flex;gap:8px}
+.btns button{padding:8px 16px;border-radius:14px;background:rgba(255,255,255,.08);font-size:.8rem;border:1px solid rgba(255,255,255,.1)}
+.btns button:hover{background:rgba(255,255,255,.15)}
+.hint{font-size:.75rem;opacity:.4}
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <a class="back-btn" href="../index.html">← 返回</a>
+  <span class="game-title">🧠 创意解谜</span>
+</div>
+<div class="container">
+  <div class="info">
+    <div><span>关卡：</span><b id="lvl">1</b></div>
+    <div><span>步数：</span><b id="moves">0</b></div>
+  </div>
+  <canvas id="game" width="400" height="400"></canvas>
+  <div class="controls">
+    <div></div>
+    <button onclick="move(0,-1)">↑</button>
+    <div></div>
+  </div>
+  <div class="controls">
+    <button onclick="move(-1,0)">←</button>
+    <button onclick="move(0,1)">↓</button>
+    <button onclick="move(1,0)">→</button>
+  </div>
+  <div class="btns">
+    <button onclick="undoMove()">撤销</button>
+    <button onclick="loadLevel()">重置</button>
+  </div>
+  <div class="hint">方向键 / WASD 推箱子到目标⭐</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+// Sokoban-style levels: W=wall, .=floor, P=player, B=box, T=target, X=box on target, Q=player on target
+const LEVEL_DATA=[
+  // Level 1 - simple
+  ['WWWWWWW',
+   'W..T..W',
+   'W.....W',
+   'W..B..W',
+   'W.....W',
+   'W..P..W',
+   'WWWWWWW'],
+  // Level 2
+  ['WWWWWWWW',
+   'W......W',
+   'W.P.B..W',
+   'W...W..W',
+   'W..BWT.W',
+   'W...T..W',
+   'W......W',
+   'WWWWWWWW'],
+  // Level 3
+  ['WWWWWWWW',
+   'WT.....W',
+   'W..WB..W',
+   'W..W...W',
+   'W.BW.T.W',
+   'W..P...W',
+   'WWWWWWWW'],
+  // Level 4
+  ['WWWWWWWWW',
+   'W.......W',
+   'W.WTW.B.W',
+   'W..BWP..W',
+   'W.WTW...W',
+   'W...B...W',
+   'W.......W',
+   'WWWWWWWWW'],
+  // Level 5
+  ['WWWWWWWWW',
+   'W...W...W',
+   'W.B.T.B.W',
+   'WW.....WW',
+   'W..WPW..W',
+   'W.B.T.B.W',
+   'W...W...W',
+   'WWT...TWW',
+   'WWWWWWWWW'],
+];
+
+let grid,playerR,playerC,moves,history,levelIdx=0;
+
+function parseLevel(data){
+  const g=[];let pr=0,pc=0;
+  for(let r=0;r<data.length;r++){
+    g[r]=[];
+    for(let c=0;c<data[r].length;c++){
+      const ch=data[r][c];
+      if(ch==='W')g[r][c]={wall:true,box:false,target:false};
+      else if(ch==='.')g[r][c]={wall:false,box:false,target:false};
+      else if(ch==='P'){g[r][c]={wall:false,box:false,target:false};pr=r;pc=c}
+      else if(ch==='B')g[r][c]={wall:false,box:true,target:false};
+      else if(ch==='T')g[r][c]={wall:false,box:false,target:true};
+      else if(ch==='X')g[r][c]={wall:false,box:true,target:true};
+      else if(ch==='Q'){g[r][c]={wall:false,box:false,target:true};pr=r;pc=c}
+      else g[r][c]={wall:false,box:false,target:false};
+    }
+  }
+  return{grid:g,pr,pc};
+}
+function loadLevel(){
+  const data=LEVEL_DATA[levelIdx];
+  const parsed=parseLevel(data);
+  grid=parsed.grid;playerR=parsed.pr;playerC=parsed.pc;
+  moves=0;history=[];
+  document.getElementById('lvl').textContent=levelIdx+1;
+  document.getElementById('moves').textContent=0;
+  draw();
+}
+function draw(){
+  const rows=grid.length,cols=grid[0].length;
+  const cellW=canvas.width/cols,cellH=canvas.height/rows;
+  const cell=Math.min(cellW,cellH);
+  const ox=(canvas.width-cols*cell)/2,oy=(canvas.height-rows*cell)/2;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+    const x=ox+c*cell,y=oy+r*cell,t=grid[r][c];
+    // Floor
+    ctx.fillStyle=t.wall?'#2d1f4e':'#1a1030';
+    ctx.fillRect(x,y,cell,cell);
+    if(!t.wall){ctx.strokeStyle='rgba(255,255,255,.03)';ctx.strokeRect(x,y,cell,cell)}
+    // Target
+    if(t.target){ctx.fillStyle='rgba(34,197,94,.25)';ctx.fillRect(x+4,y+4,cell-8,cell-8);
+      ctx.fillStyle='#22c55e';ctx.font=`${cell*0.4}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('⭐',x+cell/2,y+cell/2);
+    }
+    // Box
+    if(t.box){
+      ctx.fillStyle=t.target?'#22c55e':'#e879f9';
+      ctx.beginPath();ctx.roundRect(x+4,y+4,cell-8,cell-8,6);ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,.2)';ctx.fillRect(x+4,y+4,cell-8,4);
+    }
+    // Player
+    if(r===playerR&&c===playerC){
+      ctx.fillStyle='#c026d3';
+      ctx.beginPath();ctx.arc(x+cell/2,y+cell/2,cell/2-5,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#fff';ctx.font=`${cell*0.35}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('😊',x+cell/2,y+cell/2);
+    }
+  }
+}
+function move(dc,dr){
+  const nr=playerR+dr,nc=playerC+dc;
+  if(nr<0||nr>=grid.length||nc<0||nc>=grid[0].length)return;
+  if(grid[nr][nc].wall)return;
+  // Save state for undo
+  const state={pr:playerR,pc:playerC,boxMoved:null};
+  if(grid[nr][nc].box){
+    const br=nr+dr,bc=nc+dc;
+    if(br<0||br>=grid.length||bc<0||bc>=grid[0].length)return;
+    if(grid[br][bc].wall||grid[br][bc].box)return;
+    state.boxMoved={fr:nr,fc:nc,tr:br,tc:bc};
+    grid[br][bc].box=true;grid[nr][nc].box=false;
+  }
+  history.push(state);
+  playerR=nr;playerC=nc;moves++;
+  document.getElementById('moves').textContent=moves;
+  draw();
+  checkWin();
+}
+function undoMove(){
+  if(!history.length)return;
+  const s=history.pop();
+  if(s.boxMoved){grid[s.boxMoved.fr][s.boxMoved.fc].box=true;grid[s.boxMoved.tr][s.boxMoved.tc].box=false}
+  playerR=s.pr;playerC=s.pc;moves--;
+  document.getElementById('moves').textContent=moves;
+  draw();
+}
+function checkWin(){
+  for(let r=0;r<grid.length;r++)for(let c=0;c<grid[0].length;c++){
+    if(grid[r][c].target&&!grid[r][c].box)return;
+  }
+  // Win!
+  setTimeout(()=>{
+    ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='#22c55e';ctx.font='bold 28px sans-serif';ctx.textAlign='center';
+    ctx.fillText('🎉 过关！',canvas.width/2,canvas.height/2-10);
+    ctx.font='14px sans-serif';ctx.fillStyle='rgba(255,255,255,.5)';
+    ctx.fillText(`${moves} 步完成${levelIdx<LEVEL_DATA.length-1?' · 点击进入下一关':'· 恭喜全部通关！'}`,canvas.width/2,canvas.height/2+25);
+    canvas.onclick=()=>{
+      canvas.onclick=null;
+      if(levelIdx<LEVEL_DATA.length-1){levelIdx++;loadLevel()}else{levelIdx=0;loadLevel()}
+    };
+  },200);
+}
+document.addEventListener('keydown',e=>{
+  switch(e.key){
+    case'ArrowUp':case'w':case'W':e.preventDefault();move(0,-1);break;
+    case'ArrowDown':case's':case'S':e.preventDefault();move(0,1);break;
+    case'ArrowLeft':case'a':case'A':e.preventDefault();move(-1,0);break;
+    case'ArrowRight':case'd':case'D':e.preventDefault();move(1,0);break;
+    case'z':case'Z':if(e.ctrlKey||e.metaKey){e.preventDefault();undoMove()}break;
+  }
+});
+// Touch swipe
+let tx,ty;
+canvas.addEventListener('touchstart',e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY;e.preventDefault()},{passive:false});
+canvas.addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;
+  if(Math.abs(dx)<15&&Math.abs(dy)<15)return;
+  if(Math.abs(dx)>Math.abs(dy))move(dx>0?1:-1,0);else move(0,dy>0?1:-1);
+});
+loadLevel();
+</script>
+</body>
+</html>

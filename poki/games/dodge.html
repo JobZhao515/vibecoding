@@ -1,0 +1,96 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>障碍闯关 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}canvas{border-radius:8px;box-shadow:0 0 30px rgba(251,191,36,.1)}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">⚡ 障碍闯关</span></div>
+<div class="container">
+<canvas id="game" width="400" height="500"></canvas>
+<div class="hint">← → 或触屏移动躲避 · 生存越久分越高</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=400,H=500,keys={};
+let player,obstacles,particles,score,best=+localStorage.getItem('dodge_best')||0,running,frame;
+
+function init(){
+  player={x:W/2,y:H-50,r:12,trail:[]};obstacles=[];particles=[];score=0;running=true;frame=0;
+  loop();
+}
+document.addEventListener('keydown',e=>{keys[e.key]=true;if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key))e.preventDefault()});
+document.addEventListener('keyup',e=>{keys[e.key]=false});
+let touchTarget=null;
+canvas.addEventListener('touchstart',e=>{e.preventDefault();const r=canvas.getBoundingClientRect();touchTarget={x:(e.touches[0].clientX-r.left)*(W/r.width),y:(e.touches[0].clientY-r.top)*(H/r.height)}},{passive:false});
+canvas.addEventListener('touchmove',e=>{const r=canvas.getBoundingClientRect();touchTarget={x:(e.touches[0].clientX-r.left)*(W/r.width),y:(e.touches[0].clientY-r.top)*(H/r.height)}},{passive:true});
+canvas.addEventListener('touchend',()=>{touchTarget=null});
+
+function spawnObs(){
+  const types=['falling','sideways','expanding'];
+  const t=types[Math.floor(Math.random()*types.length)];
+  if(t==='falling')obstacles.push({type:t,x:20+Math.random()*(W-40),y:-20,w:20+Math.random()*30,h:15+Math.random()*15,vy:2+Math.random()*3+frame/800,color:'#ef4444'});
+  else if(t==='sideways'){const fromLeft=Math.random()>.5;obstacles.push({type:t,x:fromLeft?-30:W+30,y:100+Math.random()*(H-200),w:25,h:15,vx:fromLeft?3+Math.random()*2:-(3+Math.random()*2),color:'#f97316'})}
+  else obstacles.push({type:t,x:Math.random()*W,y:Math.random()*(H-100),r:0,maxR:30+Math.random()*40,growing:true,color:'#a855f7',life:120});
+}
+function update(){
+  if(!running)return;
+  frame++;score=Math.floor(frame/6);
+  const spd=4;
+  if(keys['ArrowLeft']||keys['a']||keys['A'])player.x-=spd;
+  if(keys['ArrowRight']||keys['d']||keys['D'])player.x+=spd;
+  if(keys['ArrowUp']||keys['w']||keys['W'])player.y-=spd;
+  if(keys['ArrowDown']||keys['s']||keys['S'])player.y+=spd;
+  if(touchTarget){const dx=touchTarget.x-player.x,dy=touchTarget.y-player.y,d=Math.sqrt(dx*dx+dy*dy);if(d>3){player.x+=dx/d*spd;player.y+=dy/d*spd}}
+  player.x=Math.max(player.r,Math.min(W-player.r,player.x));
+  player.y=Math.max(player.r,Math.min(H-player.r,player.y));
+  player.trail.push({x:player.x,y:player.y});if(player.trail.length>12)player.trail.shift();
+  // spawn
+  const rate=Math.max(10,50-frame/50);
+  if(frame%Math.floor(rate)===0)spawnObs();
+  // update obstacles
+  for(let i=obstacles.length-1;i>=0;i--){
+    const o=obstacles[i];
+    if(o.type==='falling'){o.y+=o.vy;if(o.y>H+30){obstacles.splice(i,1);continue}
+      if(player.x+player.r>o.x&&player.x-player.r<o.x+o.w&&player.y+player.r>o.y&&player.y-player.r<o.y+o.h){die();return}}
+    else if(o.type==='sideways'){o.x+=o.vx;if(o.x>W+40||o.x<-40){obstacles.splice(i,1);continue}
+      if(player.x+player.r>o.x&&player.x-player.r<o.x+o.w&&player.y+player.r>o.y&&player.y-player.r<o.y+o.h){die();return}}
+    else{
+      if(o.growing){o.r+=0.5;if(o.r>=o.maxR)o.growing=false}
+      o.life--;if(o.life<=0){obstacles.splice(i,1);continue}
+      const dx=player.x-o.x,dy=player.y-o.y;if(Math.sqrt(dx*dx+dy*dy)<player.r+o.r){die();return}
+    }
+  }
+}
+function die(){
+  running=false;if(score>best){best=score;localStorage.setItem('dodge_best',best)}
+  for(let k=0;k<15;k++)particles.push({x:player.x,y:player.y,vx:(Math.random()-.5)*6,vy:(Math.random()-.5)*6,life:30,color:'#fbbf24'});
+  draw();
+  ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.font='bold 28px sans-serif';ctx.textAlign='center';ctx.fillText('生存: '+score,W/2,H/2-10);
+  ctx.font='13px sans-serif';ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillText('点击重新开始',W/2,H/2+20);
+  canvas.onclick=()=>{canvas.onclick=null;init()};
+}
+function draw(){
+  const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#1a1a2e');bg.addColorStop(1,'#0f0f1a');ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  // grid
+  ctx.strokeStyle='rgba(255,255,255,.03)';ctx.lineWidth=1;for(let i=0;i<W;i+=40){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,H);ctx.stroke()}for(let i=0;i<H;i+=40){ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(W,i);ctx.stroke()}
+  // obstacles
+  obstacles.forEach(o=>{
+    ctx.globalAlpha=o.type==='expanding'?Math.min(1,o.life/30):1;
+    ctx.fillStyle=o.color;
+    if(o.type==='expanding'){ctx.beginPath();ctx.arc(o.x,o.y,o.r,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle=o.color;ctx.lineWidth=2;ctx.globalAlpha*=0.3;ctx.beginPath();ctx.arc(o.x,o.y,o.r+5,0,Math.PI*2);ctx.stroke()}
+    else{ctx.fillRect(o.x,o.y,o.w,o.h)}
+    ctx.globalAlpha=1;
+  });
+  // trail
+  player.trail.forEach((t,i)=>{ctx.globalAlpha=(i/player.trail.length)*0.2;ctx.fillStyle='#fbbf24';ctx.beginPath();ctx.arc(t.x,t.y,player.r*0.6,0,Math.PI*2);ctx.fill()});
+  ctx.globalAlpha=1;
+  // player
+  ctx.fillStyle='#fbbf24';ctx.beginPath();ctx.arc(player.x,player.y,player.r,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.3)';ctx.beginPath();ctx.arc(player.x-3,player.y-3,player.r*0.4,0,Math.PI*2);ctx.fill();
+  // particles
+  particles.forEach((p,i)=>{p.x+=p.vx;p.y+=p.vy;p.life--;ctx.globalAlpha=p.life/30;ctx.fillStyle=p.color;ctx.fillRect(p.x-2,p.y-2,4,4)});
+  particles=particles.filter(p=>p.life>0);ctx.globalAlpha=1;
+  // score
+  ctx.fillStyle='#fff';ctx.font='bold 18px sans-serif';ctx.textAlign='right';ctx.fillText(score,W-15,30);
+  ctx.font='11px sans-serif';ctx.fillStyle='rgba(255,255,255,.4)';ctx.fillText('最高:'+best,W-15,48);
+}
+function loop(){update();draw();if(running)requestAnimationFrame(loop)}
+init();
+</script></body></html>

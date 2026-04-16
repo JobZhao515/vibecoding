@@ -1,0 +1,72 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>切水果 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}canvas{border-radius:8px;background:#0a0a1a;box-shadow:0 0 30px rgba(249,115,22,.1);cursor:crosshair}.info{display:flex;gap:20px;font-size:.9rem}.info b{color:#f97316}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🔪 切水果</span></div>
+<div class="container">
+<div class="info"><div>得分：<b id="score">0</b></div><div>生命：<b id="lives">3</b></div></div>
+<canvas id="game" width="500" height="400"></canvas>
+<div class="hint">滑动 / 拖动鼠标切水果 · 不要漏掉水果</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=500,H=400;
+const FRUIT_TYPES=['🍎','🍊','🍋','🍉','🍇','🍑','🍓','🥝'];
+let fruits=[],slices=[],trail=[],score=0,lives=3,gameOver=false,spawnTimer=0;
+
+function spawn(){
+  const count=1+Math.floor(Math.random()*3);
+  for(let i=0;i<count;i++){
+    setTimeout(()=>{
+      fruits.push({
+        x:50+Math.random()*(W-100),y:H+30,
+        vx:(Math.random()-0.5)*4,vy:-10-Math.random()*5,
+        r:25,type:FRUIT_TYPES[Math.floor(Math.random()*FRUIT_TYPES.length)],
+        sliced:false,age:0
+      });
+    },i*150);
+  }
+}
+function update(){
+  if(gameOver)return;
+  spawnTimer++;if(spawnTimer>60){spawnTimer=0;spawn()}
+  for(let i=fruits.length-1;i>=0;i--){
+    const f=fruits[i];f.vy+=0.2;f.x+=f.vx;f.y+=f.vy;f.age++;
+    if(f.y>H+50){if(!f.sliced){lives--;document.getElementById('lives').textContent=lives;if(lives<=0)endGame()}fruits.splice(i,1)}
+  }
+  // slices fade
+  for(let i=slices.length-1;i>=0;i--){slices[i].life--;if(slices[i].life<=0)slices.splice(i,1);else{slices[i].x+=slices[i].vx;slices[i].y+=slices[i].vy;slices[i].vy+=0.15;slices[i].rot+=slices[i].vr}}
+  // trail fade
+  for(let i=trail.length-1;i>=0;i--){trail[i].life--;if(trail[i].life<=0)trail.splice(i,1)}
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // trail
+  if(trail.length>1){ctx.strokeStyle='rgba(255,255,255,.3)';ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(trail[0].x,trail[0].y);trail.forEach(t=>ctx.lineTo(t.x,t.y));ctx.stroke()}
+  // fruits
+  fruits.forEach(f=>{if(!f.sliced){ctx.font='40px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(f.type,f.x,f.y)}});
+  // slices
+  slices.forEach(s=>{ctx.save();ctx.translate(s.x,s.y);ctx.rotate(s.rot);ctx.globalAlpha=s.life/30;ctx.font='25px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(s.type,0,0);ctx.restore()});
+  ctx.globalAlpha=1;
+  if(gameOver){ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.font='bold 28px sans-serif';ctx.textAlign='center';ctx.fillText('游戏结束',W/2,H/2-20);ctx.font='bold 40px sans-serif';ctx.fillText(score,W/2,H/2+20);ctx.font='14px sans-serif';ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillText('点击重新开始',W/2,H/2+55)}
+}
+function checkSlice(x,y){
+  for(const f of fruits){
+    if(f.sliced)continue;
+    const dx=x-f.x,dy=y-f.y;
+    if(Math.sqrt(dx*dx+dy*dy)<f.r+15){
+      f.sliced=true;score++;document.getElementById('score').textContent=score;
+      for(let i=0;i<2;i++)slices.push({x:f.x,y:f.y,vx:(Math.random()-0.5)*5,vy:-3-Math.random()*3,rot:0,vr:(Math.random()-0.5)*0.3,life:30,type:f.type});
+    }
+  }
+}
+function endGame(){gameOver=true;canvas.onclick=()=>{canvas.onclick=null;score=0;lives=3;gameOver=false;fruits=[];slices=[];document.getElementById('score').textContent=0;document.getElementById('lives').textContent=3}}
+let dragging=false;
+function getP(e){const r=canvas.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:(t.clientX-r.left)*(W/r.width),y:(t.clientY-r.top)*(H/r.height)}}
+canvas.addEventListener('mousedown',e=>{dragging=true;const p=getP(e);trail.push({...p,life:10});checkSlice(p.x,p.y)});
+canvas.addEventListener('mousemove',e=>{if(!dragging)return;const p=getP(e);trail.push({...p,life:10});checkSlice(p.x,p.y)});
+canvas.addEventListener('mouseup',()=>{dragging=false});
+canvas.addEventListener('touchstart',e=>{e.preventDefault();dragging=true;const p=getP(e);trail.push({...p,life:10});checkSlice(p.x,p.y)},{passive:false});
+canvas.addEventListener('touchmove',e=>{const p=getP(e);trail.push({...p,life:10});checkSlice(p.x,p.y)},{passive:true});
+canvas.addEventListener('touchend',()=>{dragging=false});
+function loop(){update();draw();requestAnimationFrame(loop)}
+spawn();loop();
+</script></body></html>

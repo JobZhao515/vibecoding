@@ -1,0 +1,75 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>禅意画圆 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}canvas{border-radius:50%;background:#0a0a1a;box-shadow:0 0 40px rgba(167,139,250,.1);cursor:crosshair}.score{font-size:1.8rem;font-weight:700;color:#a78bfa}.msg{font-size:.9rem;opacity:.5;min-height:20px}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">☯️ 禅意画圆</span></div>
+<div class="container">
+<div id="score" class="score">画一个圆</div>
+<div id="msg" class="msg"></div>
+<canvas id="game" width="360" height="360"></canvas>
+<div class="hint">按住鼠标/触屏画一个尽可能完美的圆</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=360,H=360,CX=W/2,CY=H/2;
+let points=[],drawing=false,history=[],best=0;
+
+function getPos(e){
+  const r=canvas.getBoundingClientRect();
+  return{x:(e.clientX-r.left)*(W/r.width),y:(e.clientY-r.top)*(H/r.height)};
+}
+canvas.addEventListener('mousedown',e=>{drawing=true;points=[];const p=getPos(e);points.push(p)});
+canvas.addEventListener('mousemove',e=>{if(!drawing)return;points.push(getPos(e))});
+canvas.addEventListener('mouseup',()=>{if(drawing){drawing=false;evaluate()}});
+canvas.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;points=[];points.push(getPos(e.touches[0]))},{passive:false});
+canvas.addEventListener('touchmove',e=>{if(drawing)points.push(getPos(e.touches[0]))},{passive:true});
+canvas.addEventListener('touchend',()=>{drawing=false;evaluate()});
+
+function evaluate(){
+  if(points.length<10){document.getElementById('msg').textContent='画得太短了';return}
+  // find center and average radius
+  let cx=0,cy=0;points.forEach(p=>{cx+=p.x;cy+=p.y});cx/=points.length;cy/=points.length;
+  let avgR=0;points.forEach(p=>avgR+=Math.sqrt((p.x-cx)**2+(p.y-cy)**2));avgR/=points.length;
+  if(avgR<20){document.getElementById('msg').textContent='再画大一点';return}
+  // calculate deviation
+  let totalDev=0;points.forEach(p=>{const r=Math.sqrt((p.x-cx)**2+(p.y-cy)**2);totalDev+=Math.abs(r-avgR)});
+  const avgDev=totalDev/points.length;
+  // check closure
+  const closeDist=Math.sqrt((points[0].x-points[points.length-1].x)**2+(points[0].y-points[points.length-1].y)**2);
+  const closePenalty=Math.min(closeDist/avgR*10,20);
+  // score 0-100
+  const rawScore=Math.max(0,100-avgDev/avgR*100-closePenalty);
+  const score=Math.round(rawScore);
+  if(score>best)best=score;
+  history.push({points:[...points],cx,cy,r:avgR,score});
+  if(history.length>5)history.shift();
+  
+  const msgs=score>=95?'完美！🎯':score>=85?'很棒！✨':score>=70?'不错！':score>=50?'还行':score>=30?'继续练习':'多加练习';
+  document.getElementById('score').textContent=score+'%';
+  document.getElementById('msg').textContent=msgs+' (最高: '+best+'%)';
+  drawResult(cx,cy,avgR);
+}
+function drawResult(cx,cy,r){
+  ctx.clearRect(0,0,W,H);
+  // perfect circle reference
+  ctx.strokeStyle='rgba(167,139,250,.2)';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+  // user's circle
+  ctx.strokeStyle='#a78bfa';ctx.lineWidth=2.5;ctx.beginPath();points.forEach((p,i)=>{i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y)});ctx.closePath();ctx.stroke();
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // faint grid
+  ctx.strokeStyle='rgba(255,255,255,.03)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.arc(CX,CY,60,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.arc(CX,CY,120,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(CX,0);ctx.lineTo(CX,H);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(0,CY);ctx.lineTo(W,CY);ctx.stroke();
+  // draw current stroke
+  if(drawing&&points.length>1){
+    ctx.strokeStyle='#a78bfa';ctx.lineWidth=2.5;ctx.beginPath();
+    points.forEach((p,i)=>{i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y)});ctx.stroke();
+  }
+  if(drawing)requestAnimationFrame(draw);
+}
+canvas.addEventListener('mousedown',()=>requestAnimationFrame(draw));
+canvas.addEventListener('touchstart',()=>requestAnimationFrame(draw));
+draw();
+</script></body></html>

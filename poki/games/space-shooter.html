@@ -1,0 +1,77 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>太空射击 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}canvas{border-radius:8px;background:#020810;box-shadow:0 0 30px rgba(30,58,95,.3)}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🚀 太空射击</span></div>
+<div class="container">
+<canvas id="game" width="400" height="500"></canvas>
+<div class="hint">← → 移动 · 空格射击 · 触屏：左右滑动+点击射击</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=400,H=500,keys={};
+let player,bullets,enemies,particles,stars,score,best=+localStorage.getItem('space_best')||0,running,spawnTimer;
+
+function init(){
+  player={x:W/2,y:H-50,w:30,h:20,cooldown:0};bullets=[];enemies=[];particles=[];score=0;running=true;spawnTimer=0;
+  stars=Array.from({length:60},()=>({x:Math.random()*W,y:Math.random()*H,s:Math.random()*1.5+0.5,sp:Math.random()*2+0.5}));
+}
+document.addEventListener('keydown',e=>{keys[e.key]=true;if([' ','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault()});
+document.addEventListener('keyup',e=>{keys[e.key]=false});
+
+function spawnEnemy(){enemies.push({x:30+Math.random()*(W-60),y:-20,vy:1.5+Math.random()*2,r:12+Math.random()*8,color:['#ef4444','#f97316','#a855f7','#ec4899'][Math.floor(Math.random()*4)],hp:1})}
+function update(){
+  if(!running)return;
+  // player move
+  if(keys['ArrowLeft']||keys['a']||keys['A'])player.x=Math.max(15,player.x-4);
+  if(keys['ArrowRight']||keys['d']||keys['D'])player.x=Math.min(W-15,player.x+4);
+  if((keys[' '])&&player.cooldown<=0){bullets.push({x:player.x,y:player.y-15,vy:-8});player.cooldown=8}
+  if(player.cooldown>0)player.cooldown--;
+  // bullets
+  for(let i=bullets.length-1;i>=0;i--){bullets[i].y+=bullets[i].vy;if(bullets[i].y<-10)bullets.splice(i,1)}
+  // enemies
+  spawnTimer++;if(spawnTimer>40-Math.min(score,25)){spawnTimer=0;spawnEnemy()}
+  for(let i=enemies.length-1;i>=0;i--){
+    const e=enemies[i];e.y+=e.vy;
+    if(e.y>H+20){enemies.splice(i,1);continue}
+    // hit player
+    if(Math.abs(e.x-player.x)<e.r+12&&Math.abs(e.y-player.y)<e.r+10){die();return}
+    // hit by bullet
+    for(let j=bullets.length-1;j>=0;j--){
+      if(Math.abs(bullets[j].x-e.x)<e.r&&Math.abs(bullets[j].y-e.y)<e.r){
+        bullets.splice(j,1);e.hp--;
+        if(e.hp<=0){score++;for(let k=0;k<6;k++)particles.push({x:e.x,y:e.y,vx:(Math.random()-.5)*4,vy:(Math.random()-.5)*4,life:20,color:e.color});enemies.splice(i,1)}
+        break;
+      }
+    }
+  }
+  // particles & stars
+  for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx;p.y+=p.vy;p.life--;if(p.life<=0)particles.splice(i,1)}
+  stars.forEach(s=>{s.y+=s.sp;if(s.y>H)s.y=0});
+}
+function die(){
+  running=false;if(score>best){best=score;localStorage.setItem('space_best',best)}
+  draw();ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.font='bold 28px sans-serif';ctx.textAlign='center';ctx.fillText(score,W/2,H/2-10);ctx.font='13px sans-serif';ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillText('点击重新开始',W/2,H/2+20);
+  canvas.onclick=()=>{canvas.onclick=null;init()};
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  stars.forEach(s=>{ctx.fillStyle=`rgba(255,255,255,${s.s/2.5})`;ctx.fillRect(s.x,s.y,s.s,s.s)});
+  // player
+  ctx.fillStyle='#38bdf8';ctx.beginPath();ctx.moveTo(player.x,player.y-15);ctx.lineTo(player.x-12,player.y+10);ctx.lineTo(player.x+12,player.y+10);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#0ea5e9';ctx.beginPath();ctx.moveTo(player.x,player.y-8);ctx.lineTo(player.x-6,player.y+10);ctx.lineTo(player.x+6,player.y+10);ctx.closePath();ctx.fill();
+  // engine glow
+  ctx.fillStyle='#fbbf24';ctx.globalAlpha=0.5+Math.random()*0.5;ctx.beginPath();ctx.moveTo(player.x-4,player.y+10);ctx.lineTo(player.x,player.y+18+Math.random()*5);ctx.lineTo(player.x+4,player.y+10);ctx.fill();ctx.globalAlpha=1;
+  // bullets
+  ctx.fillStyle='#7dd3fc';bullets.forEach(b=>{ctx.fillRect(b.x-1.5,b.y,3,10)});
+  // enemies
+  enemies.forEach(e=>{ctx.fillStyle=e.color;ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,Math.PI*2);ctx.fill();ctx.fillStyle='rgba(0,0,0,.2)';ctx.beginPath();ctx.arc(e.x,e.y+2,e.r-3,0,Math.PI*2);ctx.fill()});
+  // particles
+  particles.forEach(p=>{ctx.globalAlpha=p.life/20;ctx.fillStyle=p.color;ctx.fillRect(p.x-2,p.y-2,4,4)});ctx.globalAlpha=1;
+  // score
+  ctx.fillStyle='#fff';ctx.font='bold 20px sans-serif';ctx.textAlign='right';ctx.fillText(score,W-15,30);
+  ctx.font='11px sans-serif';ctx.fillStyle='rgba(255,255,255,.4)';ctx.fillText('最高:'+best,W-15,48);
+}
+function loop(){update();draw();if(running)requestAnimationFrame(loop)}
+canvas.addEventListener('touchstart',e=>{e.preventDefault();const r=canvas.getBoundingClientRect();player.x=(e.touches[0].clientX-r.left)*(W/r.width);if(player.cooldown<=0){bullets.push({x:player.x,y:player.y-15,vy:-8});player.cooldown=8}},{passive:false});
+canvas.addEventListener('touchmove',e=>{const r=canvas.getBoundingClientRect();player.x=(e.touches[0].clientX-r.left)*(W/r.width)},{passive:true});
+init();loop();
+</script></body></html>

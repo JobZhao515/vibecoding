@@ -1,0 +1,68 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>双人赛车 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}canvas{border-radius:8px;background:#1a1a2e;box-shadow:0 0 30px rgba(239,68,68,.1)}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🏎️ 双人赛车</span></div>
+<div class="container">
+<canvas id="game" width="500" height="500"></canvas>
+<div class="hint">P1: WASD · P2: 方向键 · 3圈获胜</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=500,H=500,CX=W/2,CY=H/2;
+const keys={};
+let p1,p2,gameOver,winner;
+const TRACK_R=180,TRACK_W=60,LAPS=3;
+
+function init(){
+  p1={x:CX+TRACK_R,y:CY-15,angle:-Math.PI/2,speed:0,color:'#ef4444',lap:0,checkpoint:false,name:'P1'};
+  p2={x:CX+TRACK_R,y:CY+15,angle:-Math.PI/2,speed:0,color:'#3b82f6',lap:0,checkpoint:false,name:'P2'};
+  gameOver=false;winner=null;
+}
+document.addEventListener('keydown',e=>{keys[e.key]=true;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault()});
+document.addEventListener('keyup',e=>{keys[e.key]=false});
+
+function updateCar(car,fwd,back,left,right){
+  if(gameOver)return;
+  if(keys[left])car.angle-=0.04*(0.5+Math.abs(car.speed)*0.3);
+  if(keys[right])car.angle+=0.04*(0.5+Math.abs(car.speed)*0.3);
+  if(keys[fwd])car.speed=Math.min(car.speed+0.12,4);
+  else if(keys[back])car.speed=Math.max(car.speed-0.1,-2);
+  else car.speed*=0.97;
+  car.x+=Math.cos(car.angle)*car.speed;car.y+=Math.sin(car.angle)*car.speed;
+  // track boundary
+  const dx=car.x-CX,dy=car.y-CY,dist=Math.sqrt(dx*dx+dy*dy);
+  if(dist>TRACK_R+TRACK_W/2){const a=Math.atan2(dy,dx);car.x=CX+Math.cos(a)*(TRACK_R+TRACK_W/2);car.y=CY+Math.sin(a)*(TRACK_R+TRACK_W/2);car.speed*=0.5}
+  if(dist<TRACK_R-TRACK_W/2){const a=Math.atan2(dy,dx);car.x=CX+Math.cos(a)*(TRACK_R-TRACK_W/2);car.y=CY+Math.sin(a)*(TRACK_R-TRACK_W/2);car.speed*=0.5}
+  // lap detection
+  const angle=Math.atan2(car.y-CY,car.x-CX);
+  if(angle>0&&angle<Math.PI/2&&!car.checkpoint)car.checkpoint=true;
+  if(car.checkpoint&&angle<-Math.PI/2+0.3&&angle>-Math.PI){
+    car.lap++;car.checkpoint=false;
+    if(car.lap>=LAPS){gameOver=true;winner=car.name}
+  }
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // track
+  ctx.strokeStyle='#2d3748';ctx.lineWidth=TRACK_W;ctx.beginPath();ctx.arc(CX,CY,TRACK_R,0,Math.PI*2);ctx.stroke();
+  ctx.strokeStyle='#4a5568';ctx.lineWidth=2;ctx.beginPath();ctx.arc(CX,CY,TRACK_R-TRACK_W/2,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.arc(CX,CY,TRACK_R+TRACK_W/2,0,Math.PI*2);ctx.stroke();
+  // start line
+  ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(CX+TRACK_R-TRACK_W/2,CY);ctx.lineTo(CX+TRACK_R+TRACK_W/2,CY);ctx.stroke();
+  // center line (dashed)
+  ctx.strokeStyle='rgba(255,255,255,.1)';ctx.lineWidth=1;ctx.setLineDash([8,8]);ctx.beginPath();ctx.arc(CX,CY,TRACK_R,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+  // cars
+  [p1,p2].forEach(car=>{
+    ctx.save();ctx.translate(car.x,car.y);ctx.rotate(car.angle);
+    ctx.fillStyle=car.color;ctx.beginPath();ctx.roundRect(-12,-7,24,14,3);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.3)';ctx.fillRect(6,-5,5,10);
+    ctx.restore();
+  });
+  // HUD
+  ctx.fillStyle='rgba(255,255,255,.7)';ctx.font='bold 14px sans-serif';ctx.textAlign='left';
+  ctx.fillStyle=p1.color;ctx.fillText(`P1: ${p1.lap}/${LAPS}圈`,15,25);
+  ctx.fillStyle=p2.color;ctx.textAlign='right';ctx.fillText(`P2: ${p2.lap}/${LAPS}圈`,W-15,25);
+  if(gameOver){ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.font='bold 28px sans-serif';ctx.textAlign='center';ctx.fillText(winner+' 获胜！🏆',W/2,H/2-10);ctx.font='14px sans-serif';ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillText('点击重新开始',W/2,H/2+25);canvas.onclick=()=>{canvas.onclick=null;init()}}
+}
+function loop(){updateCar(p1,'w','s','a','d');updateCar(p2,'ArrowUp','ArrowDown','ArrowLeft','ArrowRight');draw();requestAnimationFrame(loop)}
+init();loop();
+</script></body></html>

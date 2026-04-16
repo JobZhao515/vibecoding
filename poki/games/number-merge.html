@@ -1,0 +1,72 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>数字合成 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:16px}.board{display:grid;grid-template-columns:repeat(5,60px);gap:4px;background:#1e293b;padding:6px;border-radius:10px}.cell{width:60px;height:60px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:1.1rem;cursor:pointer;transition:all .15s;user-select:none}.cell:hover{transform:scale(1.05)}.stats{display:flex;gap:20px;font-size:.9rem}.hint{font-size:.75rem;opacity:.4;text-align:center}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🔟 数字合成</span></div>
+<div class="container">
+<div class="stats"><span id="score" style="color:#fff">分数: 0</span><span id="best" style="color:rgba(255,255,255,.5)">最高: 0</span></div>
+<div class="board" id="board"></div>
+<div class="hint">拖拽或依次点击两个相邻的相同数字合成<br>填满则游戏结束</div>
+</div>
+<script>
+const SIZE=5;
+const COLORS={1:'#475569',2:'#6366f1',3:'#8b5cf6',4:'#a855f7',5:'#d946ef',6:'#ec4899',7:'#f43f5e',8:'#ef4444',9:'#f97316',10:'#eab308',11:'#84cc16',12:'#22c55e',13:'#14b8a6'};
+let grid,score=0,best=+localStorage.getItem('nmerge_best')||0,selected=null;
+
+function init(){
+  grid=[];score=0;selected=null;
+  for(let r=0;r<SIZE;r++){grid[r]=[];for(let c=0;c<SIZE;c++)grid[r][c]=0}
+  // place some initial numbers
+  for(let i=0;i<6;i++){
+    const r=Math.floor(Math.random()*SIZE),c=Math.floor(Math.random()*SIZE);
+    if(grid[r][c]===0)grid[r][c]=Math.random()<0.7?1:2;
+  }
+  document.getElementById('best').textContent='最高: '+best;
+  render();
+}
+function spawnRandom(){
+  const empties=[];
+  for(let r=0;r<SIZE;r++)for(let c=0;c<SIZE;c++)if(grid[r][c]===0)empties.push([r,c]);
+  if(empties.length===0)return;
+  const[r,c]=empties[Math.floor(Math.random()*empties.length)];
+  grid[r][c]=Math.random()<0.8?1:2;
+}
+function isAdj(r1,c1,r2,c2){return Math.abs(r1-r2)+Math.abs(c1-c2)===1}
+function handleClick(r,c){
+  if(grid[r][c]===0)return;
+  if(!selected){selected={r,c};render();return}
+  if(selected.r===r&&selected.c===c){selected=null;render();return}
+  if(isAdj(selected.r,selected.c,r,c)&&grid[selected.r][selected.c]===grid[r][c]){
+    const newVal=grid[r][c]+1;
+    grid[r][c]=newVal;grid[selected.r][selected.c]=0;
+    score+=newVal*newVal;
+    if(score>best){best=score;localStorage.setItem('nmerge_best',best)}
+    selected=null;spawnRandom();render();
+    checkGameOver();
+  } else {
+    selected={r,c};render();
+  }
+}
+function checkGameOver(){
+  for(let r=0;r<SIZE;r++)for(let c=0;c<SIZE;c++){
+    if(grid[r][c]===0)return;
+    if(r+1<SIZE&&grid[r+1][c]===grid[r][c])return;
+    if(c+1<SIZE&&grid[r][c+1]===grid[r][c])return;
+  }
+  setTimeout(()=>{alert('游戏结束！得分: '+score);init()},200);
+}
+function render(){
+  const board=document.getElementById('board');board.innerHTML='';
+  for(let r=0;r<SIZE;r++)for(let c=0;c<SIZE;c++){
+    const cell=document.createElement('div');cell.className='cell';
+    const v=grid[r][c];
+    cell.style.background=v===0?'#1e293b':(COLORS[v]||'#22c55e');
+    cell.textContent=v||'';
+    if(v===0)cell.style.opacity='0.3';
+    if(selected&&selected.r===r&&selected.c===c)cell.style.outline='2px solid #fff';
+    cell.addEventListener('click',()=>handleClick(r,c));
+    board.appendChild(cell);
+  }
+  document.getElementById('score').textContent='分数: '+score;
+  document.getElementById('best').textContent='最高: '+best;
+}
+init();
+</script></body></html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>物理弹球 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}canvas{border-radius:8px;background:#1e293b;box-shadow:0 0 30px rgba(100,116,139,.15);cursor:crosshair}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">⚙️ 物理弹球</span></div>
+<div class="container">
+<canvas id="game" width="400" height="500"></canvas>
+<div class="hint">点击发射弹球 · 击中目标得分 · 弹球自动受重力影响</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=400,H=500,G=0.25;
+let balls=[],pegs=[],targets=[],score=0,ballsLeft=20;
+
+function initLevel(){
+  pegs=[];targets=[];
+  // pegs grid with offset rows
+  for(let r=0;r<8;r++)for(let c=0;c<(r%2?6:7);c++){
+    pegs.push({x:(r%2?45:20)+c*55,y:100+r*45,r:6});
+  }
+  // targets at bottom
+  for(let i=0;i<5;i++){
+    targets.push({x:30+i*85,y:H-30,w:60,h:20,pts:(i===2?50:i===1||i===3?20:10),hit:false,color:i===2?'#eab308':i===1||i===3?'#f97316':'#22c55e'});
+  }
+}
+function launch(x){
+  if(ballsLeft<=0)return;
+  ballsLeft--;
+  balls.push({x:x,y:15,vx:(x-W/2)*0.01,vy:2,r:7,active:true,trail:[]});
+}
+canvas.addEventListener('click',e=>{
+  if(ballsLeft<=0){score=0;ballsLeft=20;targets.forEach(t=>t.hit=false);balls=[];return}
+  const r=canvas.getBoundingClientRect();launch((e.clientX-r.left)*(W/r.width));
+});
+function update(){
+  for(let i=balls.length-1;i>=0;i--){
+    const b=balls[i];if(!b.active)continue;
+    b.vy+=G;b.x+=b.vx;b.y+=b.vy;
+    b.trail.push({x:b.x,y:b.y});if(b.trail.length>15)b.trail.shift();
+    // walls
+    if(b.x-b.r<0){b.x=b.r;b.vx*=-0.8}
+    if(b.x+b.r>W){b.x=W-b.r;b.vx*=-0.8}
+    // pegs
+    for(const p of pegs){
+      const dx=b.x-p.x,dy=b.y-p.y,dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<b.r+p.r){
+        const nx=dx/dist,ny=dy/dist;
+        b.x=p.x+nx*(b.r+p.r);b.y=p.y+ny*(b.r+p.r);
+        const dot=b.vx*nx+b.vy*ny;
+        b.vx-=2*dot*nx*0.75;b.vy-=2*dot*ny*0.75;
+        p.glow=10;
+      }
+    }
+    // targets
+    for(const t of targets){
+      if(!t.hit&&b.x+b.r>t.x&&b.x-b.r<t.x+t.w&&b.y+b.r>t.y&&b.y-b.r<t.y+t.h){
+        score+=t.pts;t.hit=true;b.active=false;
+      }
+    }
+    if(b.y>H+20)b.active=false;
+  }
+  balls=balls.filter(b=>b.active||b.trail.length>0);
+  pegs.forEach(p=>{if(p.glow)p.glow--});
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#1e293b';ctx.fillRect(0,0,W,H);
+  // launcher area
+  ctx.fillStyle='rgba(255,255,255,.03)';ctx.fillRect(0,0,W,30);
+  ctx.fillStyle='rgba(255,255,255,.3)';ctx.font='12px sans-serif';ctx.textAlign='center';
+  ctx.fillText('↑ 点击此处发射 ↑',W/2,20);
+  // pegs
+  pegs.forEach(p=>{
+    ctx.fillStyle=p.glow?'#a78bfa':'#64748b';
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();
+    if(p.glow){ctx.globalAlpha=p.glow/10*0.3;ctx.fillStyle='#a78bfa';ctx.beginPath();ctx.arc(p.x,p.y,p.r+4,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1}
+  });
+  // targets
+  targets.forEach(t=>{
+    ctx.fillStyle=t.hit?'rgba(100,100,100,.3)':t.color;
+    ctx.beginPath();ctx.roundRect(t.x,t.y,t.w,t.h,4);ctx.fill();
+    if(!t.hit){ctx.fillStyle='#fff';ctx.font='bold 11px sans-serif';ctx.textAlign='center';ctx.fillText(t.pts,t.x+t.w/2,t.y+14)}
+  });
+  // balls & trails
+  balls.forEach(b=>{
+    b.trail.forEach((t,i)=>{ctx.globalAlpha=(i/b.trail.length)*0.2;ctx.fillStyle='#fbbf24';ctx.beginPath();ctx.arc(t.x,t.y,3,0,Math.PI*2);ctx.fill()});
+    ctx.globalAlpha=1;
+    if(b.active){ctx.fillStyle='#fbbf24';ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,.3)';ctx.beginPath();ctx.arc(b.x-2,b.y-2,b.r*0.35,0,Math.PI*2);ctx.fill()}
+  });
+  // HUD
+  ctx.fillStyle='#fff';ctx.font='bold 16px sans-serif';ctx.textAlign='left';ctx.fillText('分数: '+score,10,H-50);
+  ctx.fillText('剩余: '+ballsLeft,10,H-70);
+}
+function loop(){update();draw();requestAnimationFrame(loop)}
+initLevel();loop();
+</script></body></html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>记忆翻牌 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:16px}.board{display:grid;grid-template-columns:repeat(4,80px);gap:10px}.card{width:80px;height:90px;border-radius:10px;cursor:pointer;position:relative;perspective:600px}.card-inner{width:100%;height:100%;position:relative;transition:transform .4s;transform-style:preserve-3d}.card.flipped .card-inner,.card.matched .card-inner{transform:rotateY(180deg)}.card-front,.card-back{position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:10px;display:flex;align-items:center;justify-content:center}.card-back{background:linear-gradient(135deg,#7c3aed,#ec4899);font-size:1.5rem}.card-front{background:#1e1b4b;transform:rotateY(180deg);font-size:2.2rem}.card.matched .card-front{background:#064e3b}.stats{display:flex;gap:24px;font-size:.9rem;opacity:.7}.win{font-size:1.3rem;font-weight:700;color:#22c55e;display:none}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🃏 记忆翻牌</span></div>
+<div class="container">
+<div class="stats"><span id="moves">步数: 0</span><span id="timer">时间: 0s</span></div>
+<div class="board" id="board"></div>
+<div class="win" id="win">🎉 完成！</div>
+<div class="hint">翻开两张匹配的牌 · 记住位置</div>
+</div>
+<script>
+const EMOJIS=['🐶','🐱','🐸','🦊','🐼','🐨','🦁','🐯'];
+let cards=[],flipped=[],matched=0,moves=0,locked=false,startTime=0,timerInterval;
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function init(){
+  const board=document.getElementById('board');board.innerHTML='';
+  cards=[];flipped=[];matched=0;moves=0;locked=false;
+  document.getElementById('moves').textContent='步数: 0';
+  document.getElementById('timer').textContent='时间: 0s';
+  document.getElementById('win').style.display='none';
+  clearInterval(timerInterval);startTime=0;
+  const pairs=shuffle([...EMOJIS,...EMOJIS]);
+  pairs.forEach((emoji,i)=>{
+    const card=document.createElement('div');card.className='card';card.dataset.idx=i;card.dataset.emoji=emoji;
+    card.innerHTML=`<div class="card-inner"><div class="card-back">?</div><div class="card-front">${emoji}</div></div>`;
+    card.addEventListener('click',()=>flipCard(card));
+    board.appendChild(card);cards.push(card);
+  });
+}
+function flipCard(card){
+  if(locked||card.classList.contains('flipped')||card.classList.contains('matched'))return;
+  if(!startTime){startTime=Date.now();timerInterval=setInterval(()=>{document.getElementById('timer').textContent='时间: '+Math.floor((Date.now()-startTime)/1000)+'s'},1000)}
+  card.classList.add('flipped');flipped.push(card);
+  if(flipped.length===2){
+    moves++;document.getElementById('moves').textContent='步数: '+moves;
+    locked=true;
+    if(flipped[0].dataset.emoji===flipped[1].dataset.emoji){
+      flipped.forEach(c=>c.classList.add('matched'));matched+=2;
+      flipped=[];locked=false;
+      if(matched===cards.length){
+        clearInterval(timerInterval);document.getElementById('win').style.display='block';
+        document.getElementById('win').textContent=`🎉 完成！用了 ${moves} 步, ${Math.floor((Date.now()-startTime)/1000)}秒`;
+        setTimeout(init,3000);
+      }
+    } else {
+      setTimeout(()=>{flipped.forEach(c=>c.classList.remove('flipped'));flipped=[];locked=false},800);
+    }
+  }
+}
+init();
+</script></body></html>

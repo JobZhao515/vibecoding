@@ -1,0 +1,59 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>四子棋 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}.board{background:#1e40af;padding:8px;border-radius:10px;display:grid;grid-template-columns:repeat(7,50px);gap:4px;box-shadow:0 0 30px rgba(239,68,68,.1)}.cell{width:50px;height:50px;background:#1e3a8a;border-radius:50%;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center}.cell:hover{background:#2563eb}.piece{width:42px;height:42px;border-radius:50%}.piece.red{background:radial-gradient(circle at 35% 35%,#fca5a5,#ef4444)}.piece.yellow{background:radial-gradient(circle at 35% 35%,#fef08a,#eab308)}.status{font-size:1rem;font-weight:600}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🔴 四子棋</span></div>
+<div class="container">
+<div id="status" class="status">🔴 红棋先行</div>
+<div class="board" id="board"></div>
+<div class="hint">点击列放下棋子 · 先连成四个获胜</div>
+</div>
+<script>
+const ROWS=6,COLS=7;
+let grid,turn,gameOver;
+
+function init(){
+  grid=Array.from({length:ROWS},()=>Array(COLS).fill(0));
+  turn=1;gameOver=false;render();
+}
+function drop(col){
+  if(gameOver)return;
+  for(let r=ROWS-1;r>=0;r--){
+    if(grid[r][col]===0){grid[r][col]=turn;
+      if(checkWin(r,col,turn)){gameOver=true;render();document.getElementById('status').textContent=(turn===1?'🔴 红':'🟡 黄')+'棋获胜！';setTimeout(init,2500);return}
+      if(grid.every(row=>row.every(c=>c!==0))){gameOver=true;render();document.getElementById('status').textContent='平局！';setTimeout(init,2500);return}
+      turn=3-turn;render();
+      if(turn===2)setTimeout(aiMove,300);
+      return;
+    }
+  }
+}
+function checkWin(r,c,p){
+  const dirs=[[0,1],[1,0],[1,1],[1,-1]];
+  for(const[dr,dc]of dirs){
+    let count=1;
+    for(let d=1;d<4;d++){const nr=r+dr*d,nc=c+dc*d;if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&grid[nr][nc]===p)count++;else break}
+    for(let d=1;d<4;d++){const nr=r-dr*d,nc=c-dc*d;if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&grid[nr][nc]===p)count++;else break}
+    if(count>=4)return true;
+  }
+  return false;
+}
+function aiMove(){
+  if(gameOver)return;
+  // simple AI: check for win, block, then center preference
+  for(let c=0;c<COLS;c++){const r=getRow(c);if(r!==-1){grid[r][c]=2;if(checkWin(r,c,2)){grid[r][c]=0;drop(c);return}grid[r][c]=0}}
+  for(let c=0;c<COLS;c++){const r=getRow(c);if(r!==-1){grid[r][c]=1;if(checkWin(r,c,1)){grid[r][c]=0;drop(c);return}grid[r][c]=0}}
+  const order=[3,2,4,1,5,0,6];
+  for(const c of order){if(getRow(c)!==-1){drop(c);return}}
+}
+function getRow(col){for(let r=ROWS-1;r>=0;r--)if(grid[r][col]===0)return r;return-1}
+function render(){
+  const board=document.getElementById('board');board.innerHTML='';
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const cell=document.createElement('div');cell.className='cell';
+    if(grid[r][c]){const p=document.createElement('div');p.className='piece '+(grid[r][c]===1?'red':'yellow');cell.appendChild(p)}
+    cell.addEventListener('click',()=>{if(turn===1)drop(c)});
+    board.appendChild(cell);
+  }
+  if(!gameOver)document.getElementById('status').textContent=(turn===1?'🔴 红':'🟡 黄')+'棋落子';
+}
+init();
+</script></body></html>

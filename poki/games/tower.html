@@ -1,0 +1,86 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>叠叠高 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}canvas{border-radius:8px;background:#1c1917;box-shadow:0 0 30px rgba(249,115,22,.1);cursor:pointer}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🏗️ 叠叠高</span></div>
+<div class="container">
+<canvas id="game" width="360" height="500"></canvas>
+<div class="hint">点击/空格放下方块 · 对齐越准越好 · 偏差太大游戏结束</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=360,H=500,BLOCK_H=25;
+let stack,moving,cutPieces,score,best=+localStorage.getItem('tower_best')||0,gameOver,cameraY,speed,dir;
+
+const COLORS=['#f97316','#fb923c','#fbbf24','#a3e635','#34d399','#22d3ee','#818cf8','#c084fc','#f472b6','#fb7185'];
+
+function init(){
+  stack=[{x:W/2-60,w:120,y:H-BLOCK_H}];
+  cutPieces=[];score=0;gameOver=false;cameraY=0;
+  speed=2;dir=1;
+  spawnMoving();
+}
+function spawnMoving(){
+  const last=stack[stack.length-1];
+  moving={x:-last.w,w:last.w,y:last.y-BLOCK_H,dir:1};
+  speed=Math.min(4,2+score*0.08);
+}
+function place(){
+  if(gameOver){init();return}
+  if(!moving)return;
+  const last=stack[stack.length-1];
+  const overlap=Math.min(moving.x+moving.w,last.x+last.w)-Math.max(moving.x,last.x);
+  if(overlap<=0){gameOver=true;if(score>best){best=score;localStorage.setItem('tower_best',best)}return}
+  const nx=Math.max(moving.x,last.x);
+  // cut piece
+  if(overlap<moving.w){
+    const cutX=moving.x<last.x?moving.x:nx+overlap;
+    const cutW=moving.w-overlap;
+    cutPieces.push({x:cutX,y:moving.y,w:cutW,vy:0,color:COLORS[score%COLORS.length]});
+  }
+  stack.push({x:nx,w:overlap,y:moving.y});
+  score++;
+  spawnMoving();
+}
+document.addEventListener('keydown',e=>{if(e.key===' '){e.preventDefault();place()}});
+canvas.addEventListener('click',place);canvas.addEventListener('touchstart',e=>{e.preventDefault();place()},{passive:false});
+
+function update(){
+  if(gameOver)return;
+  if(!moving)return;
+  moving.x+=speed*moving.dir;
+  if(moving.x+moving.w>W)moving.dir=-1;
+  if(moving.x<0)moving.dir=1;
+  // camera
+  const targetCam=Math.max(0,(stack.length-10)*BLOCK_H);
+  cameraY+=(targetCam-cameraY)*0.05;
+  // cut pieces fall
+  for(let i=cutPieces.length-1;i>=0;i--){
+    cutPieces[i].vy+=0.3;cutPieces[i].y+=cutPieces[i].vy;
+    if(cutPieces[i].y>H+cameraY+50)cutPieces.splice(i,1);
+  }
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#1c1917';ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.translate(0,cameraY);
+  // stack
+  stack.forEach((b,i)=>{
+    ctx.fillStyle=COLORS[i%COLORS.length];
+    ctx.fillRect(b.x,b.y,b.w,BLOCK_H-1);
+    ctx.fillStyle='rgba(255,255,255,.1)';ctx.fillRect(b.x,b.y,b.w,3);
+  });
+  // moving
+  if(moving&&!gameOver){
+    ctx.fillStyle=COLORS[score%COLORS.length];ctx.globalAlpha=0.8;
+    ctx.fillRect(moving.x,moving.y,moving.w,BLOCK_H-1);ctx.globalAlpha=1;
+  }
+  // cut pieces
+  cutPieces.forEach(p=>{ctx.globalAlpha=0.5;ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,p.w,BLOCK_H-1);ctx.globalAlpha=1});
+  ctx.restore();
+  // HUD
+  ctx.fillStyle='#fff';ctx.font='bold 28px sans-serif';ctx.textAlign='center';ctx.fillText(score,W/2,40);
+  ctx.font='11px sans-serif';ctx.fillStyle='rgba(255,255,255,.4)';ctx.fillText('最高: '+best,W/2,58);
+  if(gameOver){ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.font='bold 26px sans-serif';ctx.fillText('游戏结束！',W/2,H/2-10);ctx.font='13px sans-serif';ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillText('点击重新开始',W/2,H/2+20)}
+}
+function loop(){update();draw();requestAnimationFrame(loop)}
+init();loop();
+</script></body></html>

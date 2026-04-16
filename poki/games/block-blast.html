@@ -1,0 +1,78 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>方块消除 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:16px}.board{display:grid;gap:2px;background:#0f172a;padding:6px;border-radius:10px;box-shadow:0 0 30px rgba(99,102,241,.1)}.cell{width:42px;height:42px;border-radius:6px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:.85rem}.cell:hover{opacity:.8;transform:scale(1.05)}.cell.empty{background:#1e293b!important;pointer-events:none}.stats{display:flex;gap:20px;font-size:.9rem;opacity:.7}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🟦 方块消除</span></div>
+<div class="container">
+<div class="stats"><span id="score">分数: 0</span><span id="best">最高: 0</span></div>
+<div class="board" id="board"></div>
+<div class="hint">点击相邻同色方块消除（至少2个）</div>
+</div>
+<script>
+const ROWS=10,COLS=10;
+const COLORS=['#6366f1','#ef4444','#22c55e','#f59e0b','#ec4899'];
+let grid,score=0,best=+localStorage.getItem('bblast_best')||0;
+
+function init(){
+  grid=[];score=0;
+  for(let r=0;r<ROWS;r++){grid[r]=[];for(let c=0;c<COLS;c++)grid[r][c]=Math.floor(Math.random()*COLORS.length)}
+  document.getElementById('best').textContent='最高: '+best;
+  render();
+}
+function findGroup(r,c){
+  const color=grid[r][c];if(color===-1)return[];
+  const visited=new Set(),stack=[[r,c]],group=[];
+  while(stack.length){
+    const[cr,cc]=stack.pop();const key=cr*COLS+cc;
+    if(visited.has(key))continue;visited.add(key);
+    if(cr<0||cr>=ROWS||cc<0||cc>=COLS||grid[cr][cc]!==color)continue;
+    group.push([cr,cc]);
+    stack.push([cr-1,cc],[cr+1,cc],[cr,cc-1],[cr,cc+1]);
+  }
+  return group;
+}
+function removeGroup(group){
+  group.forEach(([r,c])=>grid[r][c]=-1);
+  // gravity
+  for(let c=0;c<COLS;c++){
+    let write=ROWS-1;
+    for(let r=ROWS-1;r>=0;r--){if(grid[r][c]!==-1){grid[write][c]=grid[r][c];if(write!==r)grid[r][c]=-1;write--}}
+    while(write>=0)grid[write--][c]=-1;
+  }
+  // compact columns left
+  let writeCol=0;
+  for(let c=0;c<COLS;c++){
+    if(grid[ROWS-1][c]!==-1){
+      if(c!==writeCol){for(let r=0;r<ROWS;r++){grid[r][writeCol]=grid[r][c];grid[r][c]=-1}}
+      writeCol++;
+    }
+  }
+}
+function handleClick(r,c){
+  if(grid[r][c]===-1)return;
+  const group=findGroup(r,c);
+  if(group.length<2)return;
+  const pts=group.length*group.length;score+=pts;
+  if(score>best){best=score;localStorage.setItem('bblast_best',best)}
+  removeGroup(group);render();
+  // check game over
+  let hasMove=false;
+  for(let r=0;r<ROWS&&!hasMove;r++)for(let c=0;c<COLS&&!hasMove;c++){
+    if(grid[r][c]===-1)continue;
+    if(r+1<ROWS&&grid[r+1][c]===grid[r][c])hasMove=true;
+    if(c+1<COLS&&grid[r][c+1]===grid[r][c])hasMove=true;
+  }
+  if(!hasMove)setTimeout(()=>{alert('游戏结束！得分: '+score);init()},300);
+}
+function render(){
+  const board=document.getElementById('board');board.innerHTML='';
+  board.style.gridTemplateColumns=`repeat(${COLS},42px)`;
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const cell=document.createElement('div');cell.className='cell'+(grid[r][c]===-1?' empty':'');
+    if(grid[r][c]!==-1)cell.style.background=COLORS[grid[r][c]];
+    cell.addEventListener('click',()=>handleClick(r,c));
+    board.appendChild(cell);
+  }
+  document.getElementById('score').textContent='分数: '+score;
+  document.getElementById('best').textContent='最高: '+best;
+}
+init();
+</script></body></html>

@@ -1,0 +1,74 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>颜色消除 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}canvas{border-radius:8px;background:#0f0a1a;box-shadow:0 0 30px rgba(244,63,94,.1);cursor:pointer}.stats{display:flex;gap:20px;font-size:.9rem}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🎨 颜色消除</span></div>
+<div class="container">
+<div class="stats"><span id="score" style="color:#fff">分数: 0</span><span id="moves" style="color:rgba(255,255,255,.5)">剩余: 20</span></div>
+<canvas id="game" width="360" height="360"></canvas>
+<div class="hint">点击3个及以上相连同色球消除 · 20步内尽量多得分</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const ROWS=8,COLS=8,R=20,PAD=5;
+const W=COLS*(R*2+PAD)+PAD,H_BOARD=ROWS*(R*2+PAD)+PAD;
+const COLORS=['#ef4444','#3b82f6','#22c55e','#eab308','#a855f7'];
+let grid,score=0,movesLeft=20,animating=false;
+
+canvas.width=W;canvas.height=H_BOARD;
+
+function init(){
+  grid=[];score=0;movesLeft=20;animating=false;
+  for(let r=0;r<ROWS;r++){grid[r]=[];for(let c=0;c<COLS;c++)grid[r][c]=Math.floor(Math.random()*COLORS.length)}
+  updateUI();draw();
+}
+function updateUI(){
+  document.getElementById('score').textContent='分数: '+score;
+  document.getElementById('moves').textContent='剩余: '+movesLeft;
+}
+function getRC(mx,my){
+  const c=Math.floor(mx/(R*2+PAD)),r=Math.floor(my/(R*2+PAD));
+  if(r>=0&&r<ROWS&&c>=0&&c<COLS)return{r,c};return null;
+}
+function flood(r,c){
+  const color=grid[r][c];if(color===-1)return[];
+  const visited=new Set(),stack=[[r,c]],group=[];
+  while(stack.length){
+    const[cr,cc]=stack.pop();const k=cr*COLS+cc;
+    if(visited.has(k))continue;visited.add(k);
+    if(cr<0||cr>=ROWS||cc<0||cc>=COLS||grid[cr][cc]!==color)continue;
+    group.push([cr,cc]);
+    stack.push([cr-1,cc],[cr+1,cc],[cr,cc-1],[cr,cc+1]);
+  }
+  return group;
+}
+canvas.addEventListener('click',e=>{
+  if(animating||movesLeft<=0)return;
+  const rect=canvas.getBoundingClientRect();
+  const mx=(e.clientX-rect.left)*(W/rect.width),my=(e.clientY-rect.top)*(H_BOARD/rect.height);
+  const pos=getRC(mx,my);if(!pos)return;
+  const group=flood(pos.r,pos.c);
+  if(group.length<3)return;
+  movesLeft--;score+=group.length*group.length;
+  animating=true;
+  // remove
+  group.forEach(([r,c])=>grid[r][c]=-1);
+  // gravity
+  for(let c=0;c<COLS;c++){let w=ROWS-1;for(let r=ROWS-1;r>=0;r--){if(grid[r][c]!==-1){grid[w][c]=grid[r][c];if(w!==r)grid[r][c]=-1;w--}}while(w>=0)grid[w--][c]=-1}
+  // refill empty
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(grid[r][c]===-1)grid[r][c]=Math.floor(Math.random()*COLORS.length);
+  updateUI();
+  setTimeout(()=>{animating=false;draw();
+    if(movesLeft<=0)setTimeout(()=>{alert('游戏结束！得分: '+score);init()},200);
+  },200);
+  draw();
+});
+function draw(){
+  ctx.clearRect(0,0,W,H_BOARD);
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(grid[r][c]===-1)continue;
+    const cx=PAD+c*(R*2+PAD)+R,cy=PAD+r*(R*2+PAD)+R;
+    ctx.fillStyle=COLORS[grid[r][c]];ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.2)';ctx.beginPath();ctx.arc(cx-5,cy-5,R*0.3,0,Math.PI*2);ctx.fill();
+  }
+}
+init();
+</script></body></html>

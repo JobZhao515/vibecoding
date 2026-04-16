@@ -1,0 +1,58 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>双人砖块 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}canvas{border-radius:8px;background:#0a0a1a;box-shadow:0 0 30px rgba(168,85,247,.1)}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🧱 双人砖块</span></div>
+<div class="container">
+<canvas id="game" width="600" height="400"></canvas>
+<div class="hint">P1(左): A/D移动 · P2(右): ←/→移动 · 各自击碎自己一侧的砖块</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=600,H=400,HW=W/2,keys={};
+const ROWS=4,COLS=5,BW=HW/COLS-6,BH=16,BTOP=40;
+const COLORS=['#ef4444','#f97316','#eab308','#22c55e'];
+let p1,p2,b1,b2,bricks1,bricks2,s1,s2,gameOver,winner;
+
+function makeBricks(ox){const b=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)b.push({x:ox+c*(BW+4)+4,y:r*(BH+4)+BTOP,w:BW,h:BH,color:COLORS[r],alive:true});return b}
+function init(){
+  p1={x:HW/2-35,y:H-22,w:70,h:8};p2={x:HW+HW/2-35,y:H-22,w:70,h:8};
+  b1={x:HW/2,y:H-35,r:5,vx:2.5,vy:-2.5};b2={x:HW+HW/2,y:H-35,r:5,vx:-2.5,vy:-2.5};
+  bricks1=makeBricks(0);bricks2=makeBricks(HW);s1=0;s2=0;gameOver=false;winner=null;
+}
+document.addEventListener('keydown',e=>{keys[e.key]=true;if(['ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault()});
+document.addEventListener('keyup',e=>{keys[e.key]=false});
+
+function updateSide(pad,ball,bricks,minX,maxX,leftK,rightK){
+  if(keys[leftK])pad.x=Math.max(minX,pad.x-5);
+  if(keys[rightK])pad.x=Math.min(maxX-pad.w,pad.x+5);
+  ball.x+=ball.vx;ball.y+=ball.vy;
+  if(ball.x-ball.r<minX){ball.x=minX+ball.r;ball.vx*=-1}
+  if(ball.x+ball.r>maxX){ball.x=maxX-ball.r;ball.vx*=-1}
+  if(ball.y-ball.r<0){ball.y=ball.r;ball.vy*=-1}
+  if(ball.y+ball.r>H){ball.x=(minX+maxX)/2;ball.y=H-35;ball.vy=-Math.abs(ball.vy)}
+  if(ball.vy>0&&ball.y+ball.r>=pad.y&&ball.x>=pad.x&&ball.x<=pad.x+pad.w){ball.vy=-Math.abs(ball.vy);ball.vx+=((ball.x-pad.x-pad.w/2)/pad.w)*3}
+  let pts=0;
+  for(const b of bricks){if(!b.alive)continue;if(ball.x+ball.r>b.x&&ball.x-ball.r<b.x+b.w&&ball.y+ball.r>b.y&&ball.y-ball.r<b.y+b.h){b.alive=false;ball.vy*=-1;pts++}}
+  return pts;
+}
+function update(){
+  if(gameOver)return;
+  s1+=updateSide(p1,b1,bricks1,0,HW,'a','d');
+  s2+=updateSide(p2,b2,bricks2,HW,W,'ArrowLeft','ArrowRight');
+  if(bricks1.every(b=>!b.alive)){gameOver=true;winner='P1 🟢'}
+  if(bricks2.every(b=>!b.alive)){gameOver=true;winner='P2 🔵'}
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle='rgba(255,255,255,.1)';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(HW,0);ctx.lineTo(HW,H);ctx.stroke();ctx.setLineDash([]);
+  [bricks1,bricks2].forEach(bs=>bs.forEach(b=>{if(!b.alive)return;ctx.fillStyle=b.color;ctx.beginPath();ctx.roundRect(b.x,b.y,b.w,b.h,2);ctx.fill()}));
+  ctx.fillStyle='#a855f7';ctx.beginPath();ctx.roundRect(p1.x,p1.y,p1.w,p1.h,4);ctx.fill();
+  ctx.fillStyle='#06b6d4';ctx.beginPath();ctx.roundRect(p2.x,p2.y,p2.w,p2.h,4);ctx.fill();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(b1.x,b1.y,b1.r,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(b2.x,b2.y,b2.r,0,Math.PI*2);ctx.fill();
+  ctx.font='bold 14px sans-serif';ctx.fillStyle='#a855f7';ctx.textAlign='left';ctx.fillText(`P1: ${s1}`,10,20);
+  ctx.fillStyle='#06b6d4';ctx.textAlign='right';ctx.fillText(`P2: ${s2}`,W-10,20);
+  if(gameOver){ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.font='bold 26px sans-serif';ctx.textAlign='center';ctx.fillText(winner+' 先清完获胜！',W/2,H/2-10);ctx.font='14px sans-serif';ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillText('点击重新开始',W/2,H/2+25);canvas.onclick=()=>{canvas.onclick=null;init()}}
+}
+function loop(){update();draw();requestAnimationFrame(loop)}
+init();loop();
+</script></body></html>

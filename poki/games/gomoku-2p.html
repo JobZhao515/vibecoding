@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>双人五子棋 - PlayHub</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}
+.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}
+.back-btn:hover{background:rgba(124,92,252,.4)}
+.game-title{font-size:1.1rem;font-weight:700}
+.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:16px}
+.status{font-size:1rem;display:flex;align-items:center;gap:8px}
+.status .dot{width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,.3)}
+canvas{border-radius:8px;cursor:crosshair;box-shadow:0 0 40px rgba(99,102,241,.12)}
+.btns{display:flex;gap:8px}
+.btns button{padding:8px 20px;border-radius:16px;background:rgba(255,255,255,.08);font-size:.85rem;border:1px solid rgba(255,255,255,.1)}
+.btns button:hover{background:rgba(255,255,255,.15)}
+.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(0,0,0,.7);border-radius:8px;font-size:1.1rem}
+.overlay button{padding:8px 28px;border-radius:20px;background:#6366f1;color:#fff;font-weight:700;font-size:.9rem}
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <a class="back-btn" href="../index.html">← 返回</a>
+  <span class="game-title">⚫ 双人五子棋</span>
+</div>
+<div class="container">
+  <div class="status">轮到 <span class="dot" id="turnDot" style="background:#111"></span> <span id="turnText">黑棋</span></div>
+  <div style="position:relative;display:inline-block">
+    <canvas id="board" width="450" height="450"></canvas>
+    <div id="overlay" class="overlay" style="display:none"></div>
+  </div>
+  <div class="btns">
+    <button onclick="undo()">悔棋</button>
+    <button onclick="init()">重新开始</button>
+  </div>
+</div>
+<script>
+const canvas=document.getElementById('board'),ctx=canvas.getContext('2d');
+const ov=document.getElementById('overlay');
+const SIZE=15,PAD=25,CELL=(canvas.width-PAD*2)/(SIZE-1);
+let grid,history,turn,gameOver;
+
+function init(){
+  grid=Array.from({length:SIZE},()=>Array(SIZE).fill(0));
+  history=[];turn=1;gameOver=false;
+  ov.style.display='none';
+  updateTurn();draw();
+}
+function updateTurn(){
+  document.getElementById('turnDot').style.background=turn===1?'#111':'#fff';
+  document.getElementById('turnText').textContent=turn===1?'黑棋':'白棋';
+}
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // Board background
+  ctx.fillStyle='#c8a96e';ctx.fillRect(0,0,canvas.width,canvas.height);
+  // Lines
+  ctx.strokeStyle='#8b6914';ctx.lineWidth=.8;
+  for(let i=0;i<SIZE;i++){
+    ctx.beginPath();ctx.moveTo(PAD,PAD+i*CELL);ctx.lineTo(PAD+(SIZE-1)*CELL,PAD+i*CELL);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(PAD+i*CELL,PAD);ctx.lineTo(PAD+i*CELL,PAD+(SIZE-1)*CELL);ctx.stroke();
+  }
+  // Star points
+  const stars=[3,7,11];ctx.fillStyle='#8b6914';
+  for(const r of stars)for(const c of stars){ctx.beginPath();ctx.arc(PAD+c*CELL,PAD+r*CELL,3,0,Math.PI*2);ctx.fill()}
+  // Stones
+  for(let r=0;r<SIZE;r++)for(let c=0;c<SIZE;c++){
+    if(!grid[r][c])continue;
+    const x=PAD+c*CELL,y=PAD+r*CELL;
+    const grad=ctx.createRadialGradient(x-3,y-3,2,x,y,CELL/2-2);
+    if(grid[r][c]===1){grad.addColorStop(0,'#555');grad.addColorStop(1,'#111')}
+    else{grad.addColorStop(0,'#fff');grad.addColorStop(1,'#ccc')}
+    ctx.fillStyle=grad;
+    ctx.beginPath();ctx.arc(x,y,CELL/2-2,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle=grid[r][c]===1?'rgba(0,0,0,.3)':'rgba(0,0,0,.15)';ctx.lineWidth=1;ctx.stroke();
+  }
+  // Last move marker
+  if(history.length){
+    const last=history[history.length-1];
+    ctx.strokeStyle='#ef4444';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(PAD+last.c*CELL,PAD+last.r*CELL,5,0,Math.PI*2);ctx.stroke();
+  }
+}
+function check(r,c,dr,dc){
+  const p=grid[r][c];let count=1;
+  for(let d=1;d<5;d++){const nr=r+dr*d,nc=c+dc*d;if(nr<0||nr>=SIZE||nc<0||nc>=SIZE||grid[nr][nc]!==p)break;count++}
+  for(let d=1;d<5;d++){const nr=r-dr*d,nc=c-dc*d;if(nr<0||nr>=SIZE||nc<0||nc>=SIZE||grid[nr][nc]!==p)break;count++}
+  return count>=5;
+}
+function checkWin(r,c){return check(r,c,1,0)||check(r,c,0,1)||check(r,c,1,1)||check(r,c,1,-1)}
+
+canvas.addEventListener('click',e=>{
+  if(gameOver)return;
+  const rect=canvas.getBoundingClientRect();
+  const mx=(e.clientX-rect.left)*(canvas.width/rect.width);
+  const my=(e.clientY-rect.top)*(canvas.height/rect.height);
+  const c=Math.round((mx-PAD)/CELL),r=Math.round((my-PAD)/CELL);
+  if(r<0||r>=SIZE||c<0||c>=SIZE||grid[r][c])return;
+  grid[r][c]=turn;history.push({r,c,p:turn});
+  if(checkWin(r,c)){
+    gameOver=true;draw();
+    ov.style.display='flex';
+    ov.innerHTML=`<div>${turn===1?'⚫ 黑棋':'⚪ 白棋'}获胜！</div><button onclick="init()">再来一局</button>`;
+    return;
+  }
+  if(history.length===SIZE*SIZE){
+    gameOver=true;draw();
+    ov.style.display='flex';ov.innerHTML=`<div>平局！</div><button onclick="init()">再来一局</button>`;return;
+  }
+  turn=turn===1?2:1;updateTurn();draw();
+});
+
+function undo(){
+  if(gameOver||!history.length)return;
+  const last=history.pop();grid[last.r][last.c]=0;
+  turn=last.p;updateTurn();draw();
+}
+init();
+</script>
+</body>
+</html>

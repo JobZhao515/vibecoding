@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>佛系放置 - PlayHub</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}
+.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}
+.back-btn:hover{background:rgba(124,92,252,.4)}
+.game-title{font-size:1.1rem;font-weight:700}
+.container{flex:1;display:flex;flex-direction:column;align-items:center;padding:20px;gap:16px;max-width:500px;width:100%}
+.gold-display{text-align:center;margin:10px 0}
+.gold-display .amount{font-size:2.5rem;font-weight:800;color:#fbbf24;text-shadow:0 0 20px rgba(251,191,36,.3)}
+.gold-display .per-sec{font-size:.8rem;opacity:.5}
+.click-area{width:160px;height:160px;border-radius:50%;background:linear-gradient(135deg,#fbbf24,#f59e0b);display:flex;align-items:center;justify-content:center;font-size:4rem;cursor:pointer;user-select:none;transition:transform .1s;box-shadow:0 0 40px rgba(251,191,36,.2);position:relative}
+.click-area:active{transform:scale(.92)}
+.float-text{position:absolute;pointer-events:none;font-weight:700;color:#fbbf24;animation:floatUp .8s ease-out forwards;font-size:1.2rem}
+@keyframes floatUp{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-60px)}}
+.upgrades{width:100%;display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.upgrade{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#252748;border-radius:12px;cursor:pointer;transition:background .15s;border:1px solid rgba(255,255,255,.05)}
+.upgrade:hover{background:#2f3260}
+.upgrade.locked{opacity:.4;cursor:not-allowed}
+.upgrade .icon{font-size:1.5rem;width:40px;text-align:center}
+.upgrade .info{flex:1}
+.upgrade .name{font-size:.9rem;font-weight:600}
+.upgrade .desc{font-size:.7rem;opacity:.5;margin-top:2px}
+.upgrade .cost{padding:4px 12px;border-radius:10px;background:rgba(251,191,36,.15);color:#fbbf24;font-size:.8rem;font-weight:600;white-space:nowrap}
+.upgrade .level{font-size:.7rem;opacity:.4;margin-left:8px}
+.stats{width:100%;padding:12px;background:#252748;border-radius:12px;font-size:.75rem;opacity:.5;display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <a class="back-btn" href="../index.html">← 返回</a>
+  <span class="game-title">🌿 佛系放置</span>
+</div>
+<div class="container">
+  <div class="gold-display">
+    <div class="amount" id="gold">0</div>
+    <div class="per-sec" id="perSec">每秒 +0</div>
+  </div>
+  <div class="click-area" id="clickBtn" onclick="doClick(event)">🌿</div>
+  <div class="upgrades" id="upgrades"></div>
+  <div class="stats">
+    <div>总点击: <b id="totalClicks">0</b></div>
+    <div>总收入: <b id="totalEarned">0</b></div>
+  </div>
+</div>
+<script>
+const UPGRADES=[
+  {id:'click',  name:'绿叶之力',  desc:'每次点击 +1 金币',  icon:'🍀', baseCost:10,   costMul:1.5, baseValue:1,  type:'click'},
+  {id:'auto1',  name:'小花盆',    desc:'每秒自动 +1 金币',  icon:'🌱', baseCost:50,   costMul:1.6, baseValue:1,  type:'auto'},
+  {id:'auto2',  name:'小菜园',    desc:'每秒自动 +5 金币',  icon:'🌻', baseCost:300,  costMul:1.7, baseValue:5,  type:'auto'},
+  {id:'auto3',  name:'果树林',    desc:'每秒自动 +20 金币', icon:'🌳', baseCost:2000, costMul:1.8, baseValue:20, type:'auto'},
+  {id:'click2', name:'黄金手指',  desc:'每次点击 +10 金币', icon:'✨', baseCost:5000, costMul:2.0, baseValue:10, type:'click'},
+  {id:'auto4',  name:'魔法花园',  desc:'每秒自动 +100 金币',icon:'🏡', baseCost:20000,costMul:1.9, baseValue:100,type:'auto'},
+];
+
+let gold=0,clickPower=1,autoPerSec=0,totalClicks=0,totalEarned=0;
+let levels={};UPGRADES.forEach(u=>levels[u.id]=0);
+let floats=[];
+
+// Load save
+try{
+  const save=JSON.parse(localStorage.getItem('idle_save'));
+  if(save){
+    gold=save.gold||0;clickPower=save.clickPower||1;autoPerSec=save.autoPerSec||0;
+    totalClicks=save.totalClicks||0;totalEarned=save.totalEarned||0;levels=save.levels||levels;
+    // Offline earnings
+    if(save.lastTime){
+      const elapsed=Math.floor((Date.now()-save.lastTime)/1000);
+      const offline=Math.min(elapsed*autoPerSec,autoPerSec*3600); // cap at 1hr
+      if(offline>0){gold+=offline;totalEarned+=offline;}
+    }
+  }
+}catch(e){}
+
+function save(){
+  localStorage.setItem('idle_save',JSON.stringify({gold,clickPower,autoPerSec,totalClicks,totalEarned,levels,lastTime:Date.now()}));
+}
+
+function formatNum(n){
+  if(n>=1e9)return(n/1e9).toFixed(1)+'B';
+  if(n>=1e6)return(n/1e6).toFixed(1)+'M';
+  if(n>=1e3)return(n/1e3).toFixed(1)+'K';
+  return Math.floor(n).toString();
+}
+
+function doClick(e){
+  gold+=clickPower;totalClicks++;totalEarned+=clickPower;
+  // Float text
+  const btn=document.getElementById('clickBtn');
+  const rect=btn.getBoundingClientRect();
+  const ft=document.createElement('div');
+  ft.className='float-text';
+  ft.textContent='+'+formatNum(clickPower);
+  ft.style.left=(e.clientX-rect.left-10)+'px';
+  ft.style.top=(e.clientY-rect.top-20)+'px';
+  btn.appendChild(ft);
+  setTimeout(()=>ft.remove(),800);
+  updateUI();
+}
+
+function getCost(u){return Math.floor(u.baseCost*Math.pow(u.costMul,levels[u.id]))}
+
+function buyUpgrade(id){
+  const u=UPGRADES.find(up=>up.id===id);
+  const cost=getCost(u);
+  if(gold<cost)return;
+  gold-=cost;levels[u.id]++;
+  // Apply
+  recalculate();
+  updateUI();renderUpgrades();
+}
+
+function recalculate(){
+  clickPower=1;autoPerSec=0;
+  UPGRADES.forEach(u=>{
+    if(u.type==='click')clickPower+=u.baseValue*levels[u.id];
+    if(u.type==='auto')autoPerSec+=u.baseValue*levels[u.id];
+  });
+}
+
+function renderUpgrades(){
+  const el=document.getElementById('upgrades');
+  el.innerHTML=UPGRADES.map(u=>{
+    const cost=getCost(u);
+    const locked=gold<cost;
+    return`<div class="upgrade${locked?' locked':''}" onclick="buyUpgrade('${u.id}')">
+      <div class="icon">${u.icon}</div>
+      <div class="info">
+        <div class="name">${u.name}<span class="level">Lv.${levels[u.id]}</span></div>
+        <div class="desc">${u.desc}</div>
+      </div>
+      <div class="cost">${formatNum(cost)} 🪙</div>
+    </div>`;
+  }).join('');
+}
+
+function updateUI(){
+  document.getElementById('gold').textContent=formatNum(gold);
+  document.getElementById('perSec').textContent=`每秒 +${formatNum(autoPerSec)}`;
+  document.getElementById('totalClicks').textContent=formatNum(totalClicks);
+  document.getElementById('totalEarned').textContent=formatNum(totalEarned);
+  // Update locked state
+  document.querySelectorAll('.upgrade').forEach((el,i)=>{
+    const cost=getCost(UPGRADES[i]);
+    el.classList.toggle('locked',gold<cost);
+  });
+}
+
+recalculate();updateUI();renderUpgrades();
+
+// Auto income
+setInterval(()=>{
+  if(autoPerSec>0){gold+=autoPerSec/10;totalEarned+=autoPerSec/10;updateUI()}
+},100);
+
+// Save every 5s
+setInterval(save,5000);
+
+// Refresh upgrades periodically (to update locked state)
+setInterval(()=>{renderUpgrades()},1000);
+</script>
+</body>
+</html>

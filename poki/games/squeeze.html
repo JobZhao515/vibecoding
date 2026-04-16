@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>捏捏乐 - PlayHub</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh;overflow:hidden}
+.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06);z-index:10}
+.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}
+.back-btn:hover{background:rgba(124,92,252,.4)}
+.game-title{font-size:1.1rem;font-weight:700}
+.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:20px;width:100%}
+canvas{border-radius:12px;cursor:pointer;touch-action:none}
+.shape-bar{display:flex;gap:8px}
+.shape-bar button{padding:8px 16px;border-radius:14px;background:rgba(255,255,255,.06);font-size:.85rem;border:1px solid rgba(255,255,255,.1);transition:all .15s}
+.shape-bar button.active{background:rgba(251,146,60,.2);border-color:#fb923c;color:#fb923c}
+.shape-bar button:hover{background:rgba(255,255,255,.1)}
+.hint{font-size:.75rem;opacity:.4}
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <a class="back-btn" href="../index.html">← 返回</a>
+  <span class="game-title">🫠 捏捏乐</span>
+</div>
+<div class="container">
+  <canvas id="game"></canvas>
+  <div class="shape-bar">
+    <button class="active" onclick="setShape('circle',this)">⭕ 圆形</button>
+    <button onclick="setShape('square',this)">⬜ 方形</button>
+    <button onclick="setShape('star',this)">⭐ 星形</button>
+    <button onclick="setShape('heart',this)">❤️ 心形</button>
+  </div>
+  <div class="hint">点击 / 按住拖动来捏，释放恢复</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+let W,H;
+function resize(){
+  W=Math.min(500,window.innerWidth-40);H=Math.min(500,window.innerHeight-180);
+  canvas.width=W;canvas.height=H;
+}
+resize();window.addEventListener('resize',resize);
+
+let shape='circle',pressing=false,mx=W/2,my=H/2,pressForce=0;
+let particles=[];
+const COLORS=['#fb923c','#f97316','#ea580c','#fbbf24','#f59e0b','#ec4899','#a855f7','#22c55e','#3b82f6'];
+let bgColor={h:25,s:90,l:55};
+let ripples=[];
+
+function setShape(s,btn){
+  shape=s;
+  document.querySelectorAll('.shape-bar button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function drawShape(cx,cy,size,squeeze){
+  const s=size*(1+squeeze*0.3);
+  const sy=size*(1-squeeze*0.2);
+  ctx.save();ctx.translate(cx,cy);
+
+  if(shape==='circle'){
+    ctx.scale(1+squeeze*0.2,1-squeeze*0.15);
+    ctx.beginPath();ctx.arc(0,0,size,0,Math.PI*2);ctx.fill();
+  }else if(shape==='square'){
+    const r=size*0.85;
+    ctx.scale(1+squeeze*0.25,1-squeeze*0.15);
+    ctx.beginPath();ctx.roundRect(-r,-r,r*2,r*2,size*0.2);ctx.fill();
+  }else if(shape==='star'){
+    ctx.scale(1+squeeze*0.15,1-squeeze*0.1);
+    ctx.beginPath();
+    for(let i=0;i<5;i++){
+      const a=-Math.PI/2+i*2*Math.PI/5;const a2=a+Math.PI/5;
+      ctx.lineTo(Math.cos(a)*size,Math.sin(a)*size);
+      ctx.lineTo(Math.cos(a2)*size*0.45,Math.sin(a2)*size*0.45);
+    }ctx.closePath();ctx.fill();
+  }else if(shape==='heart'){
+    ctx.scale(1+squeeze*0.2,1-squeeze*0.12);
+    const s2=size*0.03;
+    ctx.beginPath();ctx.moveTo(0,size*0.3);
+    ctx.bezierCurveTo(-size,-size*0.5,-size*0.6,-size,0,-size*0.4);
+    ctx.bezierCurveTo(size*0.6,-size,size,-size*0.5,0,size*0.3);
+    ctx.closePath();ctx.fill();
+  }
+  ctx.restore();
+}
+
+function spawnParticles(x,y,count){
+  for(let i=0;i<count;i++){
+    const angle=Math.random()*Math.PI*2;
+    const speed=2+Math.random()*4;
+    particles.push({
+      x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,
+      life:30+Math.random()*20,maxLife:50,
+      size:3+Math.random()*5,
+      color:COLORS[Math.floor(Math.random()*COLORS.length)]
+    });
+  }
+}
+function addRipple(x,y){
+  ripples.push({x,y,r:10,maxR:80+Math.random()*40,alpha:0.4,speed:2+Math.random()});
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // Background gradient
+  const bg=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,W*0.7);
+  bg.addColorStop(0,`hsla(${bgColor.h},${bgColor.s}%,${bgColor.l*0.15}%,1)`);
+  bg.addColorStop(1,'#1a1b2e');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+
+  // Ripples
+  ripples.forEach(r=>{
+    ctx.strokeStyle=`rgba(251,146,60,${r.alpha})`;ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,Math.PI*2);ctx.stroke();
+  });
+
+  // Main shape
+  const squeeze=pressing?Math.min(pressForce,1):pressForce;
+  const mainSize=Math.min(W,H)*0.25;
+  const hue=bgColor.h;
+
+  // Shadow
+  ctx.fillStyle=`hsla(${hue},80%,30%,${0.3+squeeze*0.2})`;
+  drawShape(W/2+3,H/2+5+squeeze*10,mainSize-5,squeeze);
+
+  // Main body
+  const mainGrad=ctx.createRadialGradient(W/2-mainSize*0.2,H/2-mainSize*0.2,mainSize*0.1,W/2,H/2,mainSize);
+  mainGrad.addColorStop(0,`hsla(${hue},${bgColor.s}%,${bgColor.l+15}%,1)`);
+  mainGrad.addColorStop(1,`hsla(${hue},${bgColor.s}%,${bgColor.l-10}%,1)`);
+  ctx.fillStyle=mainGrad;
+  drawShape(W/2,H/2,mainSize,squeeze);
+
+  // Highlight
+  ctx.fillStyle=`hsla(${hue},90%,85%,${0.25-squeeze*0.1})`;
+  ctx.beginPath();ctx.ellipse(W/2-mainSize*0.2,H/2-mainSize*0.25,mainSize*0.2,mainSize*0.12,-.3,0,Math.PI*2);ctx.fill();
+
+  // Eyes (on circle/square/heart)
+  if(shape!=='star'){
+    const eyeY=H/2-(squeeze*10)-mainSize*0.15;
+    const eyeSpacing=mainSize*0.25;
+    // Eyes
+    ctx.fillStyle='#fff';
+    ctx.beginPath();ctx.ellipse(W/2-eyeSpacing,eyeY,8,10-squeeze*3,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(W/2+eyeSpacing,eyeY,8,10-squeeze*3,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#333';
+    ctx.beginPath();ctx.arc(W/2-eyeSpacing+1,eyeY+1,3.5,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(W/2+eyeSpacing+1,eyeY+1,3.5,0,Math.PI*2);ctx.fill();
+    // Mouth
+    if(squeeze>0.3){
+      ctx.fillStyle='#c0392b';ctx.beginPath();
+      ctx.ellipse(W/2,eyeY+mainSize*0.35,8+squeeze*5,4+squeeze*8,0,0,Math.PI*2);ctx.fill();
+    }else{
+      ctx.strokeStyle='#c0392b';ctx.lineWidth=2;ctx.beginPath();
+      ctx.arc(W/2,eyeY+mainSize*0.3,8,0.1,Math.PI-0.1);ctx.stroke();
+    }
+  }
+
+  // Particles
+  particles.forEach(p=>{
+    ctx.globalAlpha=p.life/p.maxLife;
+    ctx.fillStyle=p.color;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.size*(p.life/p.maxLife),0,Math.PI*2);ctx.fill();
+  });
+  ctx.globalAlpha=1;
+}
+
+function update(){
+  if(pressing){
+    pressForce=Math.min(pressForce+0.04,1);
+    if(Math.random()<pressForce*0.3)spawnParticles(mx+(Math.random()-.5)*60,my+(Math.random()-.5)*60,1);
+  }else{
+    pressForce*=0.9;if(pressForce<0.01)pressForce=0;
+  }
+  // Particles
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vy+=0.1;p.life--;
+    if(p.life<=0)particles.splice(i,1);
+  }
+  // Ripples
+  for(let i=ripples.length-1;i>=0;i--){
+    const r=ripples[i];r.r+=r.speed;r.alpha*=0.96;
+    if(r.alpha<0.01)ripples.splice(i,1);
+  }
+  draw();
+  requestAnimationFrame(update);
+}
+
+function onPress(x,y){
+  pressing=true;mx=x;my=y;
+  spawnParticles(W/2,H/2,8);addRipple(W/2,H/2);
+  // Change color
+  bgColor.h=(bgColor.h+Math.random()*40+20)%360;
+}
+function onRelease(){
+  if(pressing&&pressForce>0.5){spawnParticles(W/2,H/2,20);addRipple(W/2,H/2)}
+  pressing=false;
+}
+canvas.addEventListener('mousedown',e=>{const r=canvas.getBoundingClientRect();onPress(e.clientX-r.left,e.clientY-r.top)});
+canvas.addEventListener('mouseup',onRelease);canvas.addEventListener('mouseleave',onRelease);
+canvas.addEventListener('mousemove',e=>{if(pressing){const r=canvas.getBoundingClientRect();mx=e.clientX-r.left;my=e.clientY-r.top}});
+canvas.addEventListener('touchstart',e=>{e.preventDefault();const r=canvas.getBoundingClientRect();onPress(e.touches[0].clientX-r.left,e.touches[0].clientY-r.top)},{passive:false});
+canvas.addEventListener('touchend',e=>{e.preventDefault();onRelease()},{passive:false});
+canvas.addEventListener('touchmove',e=>{if(pressing){const r=canvas.getBoundingClientRect();mx=e.touches[0].clientX-r.left;my=e.touches[0].clientY-r.top}},{passive:true});
+
+update();
+</script>
+</body>
+</html>

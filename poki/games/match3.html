@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>经典三消 - PlayHub</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}
+.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}
+.back-btn:hover{background:rgba(124,92,252,.4)}
+.game-title{font-size:1.1rem;font-weight:700}
+.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}
+.score-bar{display:flex;gap:24px;font-size:.9rem}
+.score-bar span{opacity:.5}
+.score-bar b{color:#3b82f6}
+canvas{border-radius:8px;background:#0a0f2a;box-shadow:0 0 40px rgba(59,130,246,.12);cursor:pointer}
+.hint{font-size:.75rem;opacity:.4}
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <a class="back-btn" href="../index.html">← 返回</a>
+  <span class="game-title">💎 经典三消</span>
+</div>
+<div class="container">
+  <div class="score-bar">
+    <div><span>得分：</span><b id="score">0</b></div>
+    <div><span>连击：</span><b id="combo">0</b></div>
+  </div>
+  <canvas id="game" width="400" height="400"></canvas>
+  <div class="hint">点击一个宝石，再点相邻宝石交换 · 匹配3个以上消除</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const ROWS=8,COLS=8,CELL=canvas.width/COLS;
+const GEMS=[
+  {color:'#ef4444',shape:'circle'},   // red
+  {color:'#22c55e',shape:'diamond'},   // green
+  {color:'#3b82f6',shape:'square'},    // blue
+  {color:'#f59e0b',shape:'triangle'},  // yellow
+  {color:'#a855f7',shape:'star'},      // purple
+  {color:'#ec4899',shape:'hexagon'},   // pink
+];
+let grid,selected,score,combo,animating;
+
+function init(){
+  score=0;combo=0;animating=false;selected=null;
+  document.getElementById('score').textContent=0;
+  document.getElementById('combo').textContent=0;
+  // Fill grid ensuring no initial matches
+  grid=Array.from({length:ROWS},()=>Array(COLS).fill(0));
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    let choices=[...Array(GEMS.length).keys()];
+    // Remove colors that would create 3-match
+    if(c>=2&&grid[r][c-1]===grid[r][c-2])choices=choices.filter(v=>v!==grid[r][c-1]);
+    if(r>=2&&grid[r-1][c]===grid[r-2][c])choices=choices.filter(v=>v!==grid[r-1][c]);
+    grid[r][c]=choices[Math.floor(Math.random()*choices.length)];
+  }
+  draw();
+}
+function drawGem(x,y,size,type,alpha=1){
+  ctx.globalAlpha=alpha;
+  const g=GEMS[type],cx=x+size/2,cy=y+size/2,r=size/2-6;
+  ctx.fillStyle=g.color;
+  if(g.shape==='circle'){ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill()}
+  else if(g.shape==='square'){ctx.beginPath();ctx.roundRect(x+6,y+6,size-12,size-12,6);ctx.fill()}
+  else if(g.shape==='diamond'){
+    ctx.beginPath();ctx.moveTo(cx,y+6);ctx.lineTo(x+size-6,cy);ctx.lineTo(cx,y+size-6);ctx.lineTo(x+6,cy);ctx.closePath();ctx.fill();
+  }else if(g.shape==='triangle'){
+    ctx.beginPath();ctx.moveTo(cx,y+6);ctx.lineTo(x+size-6,y+size-6);ctx.lineTo(x+6,y+size-6);ctx.closePath();ctx.fill();
+  }else if(g.shape==='star'){
+    ctx.beginPath();
+    for(let i=0;i<5;i++){
+      const a=Math.PI/2+i*2*Math.PI/5;const a2=a+Math.PI/5;
+      ctx.lineTo(cx+Math.cos(-a)*r,cy+Math.sin(-a)*r);
+      ctx.lineTo(cx+Math.cos(-a2)*r*0.45,cy+Math.sin(-a2)*r*0.45);
+    }ctx.closePath();ctx.fill();
+  }else if(g.shape==='hexagon'){
+    ctx.beginPath();
+    for(let i=0;i<6;i++){const a=i*Math.PI/3;ctx.lineTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r)}
+    ctx.closePath();ctx.fill();
+  }
+  // Shine
+  ctx.fillStyle='rgba(255,255,255,.25)';
+  ctx.beginPath();ctx.arc(cx-r*0.25,cy-r*0.25,r*0.25,0,Math.PI*2);ctx.fill();
+  ctx.globalAlpha=1;
+}
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // Grid bg
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    ctx.fillStyle=(r+c)%2===0?'rgba(255,255,255,.02)':'transparent';
+    ctx.fillRect(c*CELL,r*CELL,CELL,CELL);
+  }
+  // Gems
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(grid[r][c]>=0)drawGem(c*CELL,r*CELL,CELL,grid[r][c]);
+  }
+  // Selection highlight
+  if(selected){
+    ctx.strokeStyle='#fff';ctx.lineWidth=3;
+    ctx.strokeRect(selected.c*CELL+3,selected.r*CELL+3,CELL-6,CELL-6);
+  }
+}
+function findMatches(){
+  const matched=new Set();
+  // Horizontal
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS-2;c++){
+      if(grid[r][c]<0)continue;
+      if(grid[r][c]===grid[r][c+1]&&grid[r][c]===grid[r][c+2]){
+        let end=c+2;while(end+1<COLS&&grid[r][end+1]===grid[r][c])end++;
+        for(let i=c;i<=end;i++)matched.add(r*COLS+i);
+      }
+    }
+  }
+  // Vertical
+  for(let c=0;c<COLS;c++){
+    for(let r=0;r<ROWS-2;r++){
+      if(grid[r][c]<0)continue;
+      if(grid[r][c]===grid[r+1][c]&&grid[r][c]===grid[r+2][c]){
+        let end=r+2;while(end+1<ROWS&&grid[end+1][c]===grid[r][c])end++;
+        for(let i=r;i<=end;i++)matched.add(i*COLS+c);
+      }
+    }
+  }
+  return matched;
+}
+function removeAndFill(matched){
+  matched.forEach(idx=>{const r=Math.floor(idx/COLS),c=idx%COLS;grid[r][c]=-1});
+  // Drop
+  for(let c=0;c<COLS;c++){
+    let empty=ROWS-1;
+    for(let r=ROWS-1;r>=0;r--){
+      if(grid[r][c]>=0){
+        if(r!==empty){grid[empty][c]=grid[r][c];grid[r][c]=-1}
+        empty--;
+      }
+    }
+    // Fill top
+    for(let r=empty;r>=0;r--)grid[r][c]=Math.floor(Math.random()*GEMS.length);
+  }
+}
+async function processMatches(){
+  animating=true;combo=0;
+  let matched=findMatches();
+  while(matched.size>0){
+    combo++;score+=matched.size*10*combo;
+    document.getElementById('score').textContent=score;
+    document.getElementById('combo').textContent=combo;
+    // Flash
+    for(let i=0;i<3;i++){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+        ctx.fillStyle=(r+c)%2===0?'rgba(255,255,255,.02)':'transparent';
+        ctx.fillRect(c*CELL,r*CELL,CELL,CELL);
+        if(grid[r][c]>=0){
+          const isMatched=matched.has(r*COLS+c);
+          drawGem(c*CELL,r*CELL,CELL,grid[r][c],isMatched?(i%2?.2:1):1);
+        }
+      }
+      await new Promise(r=>setTimeout(r,80));
+    }
+    removeAndFill(matched);
+    draw();
+    await new Promise(r=>setTimeout(r,200));
+    matched=findMatches();
+  }
+  combo=0;document.getElementById('combo').textContent=0;
+  animating=false;
+  // Check for possible moves
+  if(!hasPossibleMoves()){
+    ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='#fff';ctx.font='bold 22px sans-serif';ctx.textAlign='center';
+    ctx.fillText('没有可用的移动了！',canvas.width/2,canvas.height/2-10);
+    ctx.font='14px sans-serif';ctx.fillStyle='rgba(255,255,255,.5)';
+    ctx.fillText('点击重新开始',canvas.width/2,canvas.height/2+20);
+    canvas.onclick=()=>{canvas.onclick=onClick;init()};
+  }
+}
+function hasPossibleMoves(){
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    // Try swap right
+    if(c+1<COLS){swap(r,c,r,c+1);if(findMatches().size>0){swap(r,c,r,c+1);return true}swap(r,c,r,c+1)}
+    // Try swap down
+    if(r+1<ROWS){swap(r,c,r+1,c);if(findMatches().size>0){swap(r,c,r+1,c);return true}swap(r,c,r+1,c)}
+  }
+  return false;
+}
+function swap(r1,c1,r2,c2){const t=grid[r1][c1];grid[r1][c1]=grid[r2][c2];grid[r2][c2]=t}
+function onClick(e){
+  if(animating)return;
+  const rect=canvas.getBoundingClientRect();
+  const c=Math.floor((e.clientX-rect.left)*(COLS/rect.width));
+  const r=Math.floor((e.clientY-rect.top)*(ROWS/rect.height));
+  if(r<0||r>=ROWS||c<0||c>=COLS)return;
+  if(!selected){selected={r,c};draw();return}
+  // Check adjacency
+  const dr=Math.abs(r-selected.r),dc=Math.abs(c-selected.c);
+  if((dr===1&&dc===0)||(dr===0&&dc===1)){
+    swap(selected.r,selected.c,r,c);
+    if(findMatches().size>0){
+      selected=null;draw();processMatches();
+    }else{
+      swap(selected.r,selected.c,r,c);selected=null;draw();
+    }
+  }else{
+    selected={r,c};draw();
+  }
+}
+canvas.addEventListener('click',onClick);
+// Touch
+let tr,tc;
+canvas.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  const rect=canvas.getBoundingClientRect();
+  tc=Math.floor((e.touches[0].clientX-rect.left)*(COLS/rect.width));
+  tr=Math.floor((e.touches[0].clientY-rect.top)*(ROWS/rect.height));
+},{passive:false});
+canvas.addEventListener('touchend',e=>{
+  const rect=canvas.getBoundingClientRect();
+  const ec=Math.floor((e.changedTouches[0].clientX-rect.left)*(COLS/rect.width));
+  const er=Math.floor((e.changedTouches[0].clientY-rect.top)*(ROWS/rect.height));
+  if(ec===tc&&er===tr){onClick({clientX:e.changedTouches[0].clientX,clientY:e.changedTouches[0].clientY})}
+  else if(selected){
+    // Swipe to swap
+    const dx=ec-tc,dy=er-tr;
+    let nr=selected.r,nc=selected.c;
+    if(Math.abs(dx)>Math.abs(dy))nc+=dx>0?1:-1;else nr+=dy>0?1:-1;
+    if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS){
+      swap(selected.r,selected.c,nr,nc);
+      if(findMatches().size>0){selected=null;draw();processMatches()}
+      else{swap(selected.r,selected.c,nr,nc);selected=null;draw()}
+    }
+  }
+});
+init();
+</script>
+</body>
+</html>

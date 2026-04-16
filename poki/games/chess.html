@@ -1,0 +1,79 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>简易象棋 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}canvas{border-radius:8px;box-shadow:0 0 30px rgba(146,64,14,.15);cursor:pointer}.status{font-size:.9rem;font-weight:600}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">♟️ 简易象棋</span></div>
+<div class="container">
+<div id="status" class="status">白方先行</div>
+<canvas id="game" width="360" height="360"></canvas>
+<div class="hint">点击选中棋子，再点目标位置移动 · 简化版国际象棋</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const SZ=360,CELL=SZ/8;
+// Simplified chess: King, Queen, Rook, Bishop, Knight, Pawn
+const PIECES={K:'♚',Q:'♛',R:'♜',B:'♝',N:'♞',P:'♟'};
+let board,turn,selected,validMoves,gameOver;
+
+function init(){
+  board=Array.from({length:8},()=>Array(8).fill(null));
+  // White (player=1) bottom, Black (player=2) top
+  const back=['R','N','B','Q','K','B','N','R'];
+  for(let c=0;c<8;c++){
+    board[0][c]={type:back[c],player:2};
+    board[1][c]={type:'P',player:2};
+    board[6][c]={type:'P',player:1};
+    board[7][c]={type:back[c],player:1};
+  }
+  turn=1;selected=null;validMoves=[];gameOver=false;draw();
+}
+function getMoves(r,c){
+  const p=board[r][c];if(!p)return[];
+  const moves=[],pl=p.player,dir=pl===1?-1:1;
+  function add(nr,nc){if(nr<0||nr>7||nc<0||nc>7)return false;if(board[nr][nc]&&board[nr][nc].player===pl)return false;moves.push([nr,nc]);return!board[nr][nc]}
+  function slide(dr,dc){let nr=r+dr,nc=c+dc;while(nr>=0&&nr<8&&nc>=0&&nc<8){if(!add(nr,nc))break;nr+=dr;nc+=dc}}
+  switch(p.type){
+    case'P':if(!board[r+dir]?.[c]){add(r+dir,c);if((pl===1&&r===6)||(pl===2&&r===1))if(!board[r+dir*2]?.[c])add(r+dir*2,c)}
+      if(board[r+dir]?.[c-1]?.player===3-pl)add(r+dir,c-1);if(board[r+dir]?.[c+1]?.player===3-pl)add(r+dir,c+1);break;
+    case'R':slide(1,0);slide(-1,0);slide(0,1);slide(0,-1);break;
+    case'B':slide(1,1);slide(1,-1);slide(-1,1);slide(-1,-1);break;
+    case'Q':slide(1,0);slide(-1,0);slide(0,1);slide(0,-1);slide(1,1);slide(1,-1);slide(-1,1);slide(-1,-1);break;
+    case'N':[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]].forEach(([dr,dc])=>add(r+dr,c+dc));break;
+    case'K':[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].forEach(([dr,dc])=>add(r+dr,c+dc));break;
+  }
+  return moves;
+}
+canvas.addEventListener('click',e=>{
+  if(gameOver){init();return}
+  const rect=canvas.getBoundingClientRect();
+  const c=Math.floor((e.clientX-rect.left)/CELL),r=Math.floor((e.clientY-rect.top)/CELL);
+  if(selected){
+    const vm=validMoves.find(([vr,vc])=>vr===r&&vc===c);
+    if(vm){
+      const cap=board[r][c];
+      board[r][c]=board[selected.r][selected.c];board[selected.r][selected.c]=null;
+      // pawn promotion
+      if(board[r][c].type==='P'&&(r===0||r===7))board[r][c].type='Q';
+      if(cap&&cap.type==='K'){gameOver=true;document.getElementById('status').textContent=(turn===1?'白':'黑')+'方获胜！';selected=null;validMoves=[];draw();setTimeout(init,3000);return}
+      turn=3-turn;selected=null;validMoves=[];draw();
+      document.getElementById('status').textContent=(turn===1?'白':'黑')+'方落子';
+      return;
+    }
+  }
+  if(board[r][c]&&board[r][c].player===turn){
+    selected={r,c};validMoves=getMoves(r,c);draw();
+  } else {selected=null;validMoves=[];draw()}
+});
+function draw(){
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+    ctx.fillStyle=(r+c)%2===0?'#e8d5b0':'#b58863';
+    if(selected&&selected.r===r&&selected.c===c)ctx.fillStyle='#7cb342';
+    ctx.fillRect(c*CELL,r*CELL,CELL,CELL);
+    if(validMoves.some(([vr,vc])=>vr===r&&vc===c)){
+      ctx.fillStyle='rgba(124,179,66,.3)';ctx.fillRect(c*CELL,r*CELL,CELL,CELL);
+      ctx.fillStyle='rgba(124,179,66,.6)';ctx.beginPath();ctx.arc(c*CELL+CELL/2,r*CELL+CELL/2,6,0,Math.PI*2);ctx.fill();
+    }
+    const p=board[r][c];
+    if(p){ctx.fillStyle=p.player===1?'#fff':'#222';ctx.font='bold 28px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(PIECES[p.type],c*CELL+CELL/2,r*CELL+CELL/2+2)}
+  }
+}
+init();
+</script></body></html>

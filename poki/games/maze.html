@@ -1,0 +1,95 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>重力迷宫 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}canvas{border-radius:8px;background:#0c1220;box-shadow:0 0 30px rgba(6,182,212,.1)}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🌀 重力迷宫</span></div>
+<div class="container">
+<canvas id="game" width="400" height="400"></canvas>
+<div class="hint">方向键/WASD 改变重力方向 · 让球到达绿色出口</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=400,H=400,CELL=40,COLS=W/CELL,ROWS=H/CELL;
+let ball,goal,walls,gx,gy,level,moves,won;
+
+const LEVELS=[
+  // Each level: walls array [row,col,right?,bottom?], ball[r,c], goal[r,c]
+  {ball:[0,0],goal:[9,9],walls:[[0,2,0,1],[1,1,0,1],[2,3,0,1],[3,2,0,1],[1,5,0,1],[4,4,0,1],[5,6,0,1],[6,3,0,1],[7,7,0,1],[3,8,0,1],[5,1,0,1],[8,5,0,1],[2,7,0,1],[6,8,0,1]]},
+  {ball:[0,9],goal:[9,0],walls:[[1,1,1,0],[1,3,1,0],[2,5,0,1],[3,2,1,0],[4,7,0,1],[5,4,1,0],[6,1,0,1],[7,6,1,0],[8,3,0,1],[2,8,1,0],[4,1,0,1],[6,6,0,1],[7,9,0,1]]},
+  {ball:[5,5],goal:[0,0],walls:[[1,2,0,1],[2,4,1,0],[3,1,0,1],[3,6,0,1],[4,3,1,0],[5,8,0,1],[6,2,0,1],[7,5,1,0],[1,7,0,1],[8,8,0,1],[6,6,1,0],[4,9,0,1],[2,0,0,1],[8,1,1,0]]}
+];
+
+function loadLevel(n){
+  level=n%LEVELS.length;
+  const L=LEVELS[level];
+  ball={x:L.ball[1]*CELL+CELL/2,y:L.ball[0]*CELL+CELL/2,r:12,vx:0,vy:0};
+  goal={x:L.goal[1]*CELL+CELL/2,y:L.goal[0]*CELL+CELL/2};
+  walls=[];
+  // border walls
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(r===0)walls.push({x:c*CELL,y:0,w:CELL,h:2});
+    if(r===ROWS-1)walls.push({x:c*CELL,y:H-2,w:CELL,h:2});
+    if(c===0)walls.push({x:0,y:r*CELL,w:2,h:CELL});
+    if(c===COLS-1)walls.push({x:W-2,y:r*CELL,w:2,h:CELL});
+  }
+  L.walls.forEach(w=>{
+    const [r,c,right,bottom]=w;
+    if(bottom)walls.push({x:c*CELL,y:(r+1)*CELL-2,w:CELL,h:4});
+    if(right)walls.push({x:(c+1)*CELL-2,y:r*CELL,w:4,h:CELL});
+  });
+  gx=0;gy=0.15;moves=0;won=false;
+}
+document.addEventListener('keydown',e=>{
+  if(won){if(e.key==='Enter'){loadLevel(level+1)}return}
+  if(e.key==='ArrowUp'||e.key==='w'||e.key==='W'){gy=-0.15;gx=0;moves++;e.preventDefault()}
+  if(e.key==='ArrowDown'||e.key==='s'||e.key==='S'){gy=0.15;gx=0;moves++;e.preventDefault()}
+  if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A'){gx=-0.15;gy=0;moves++;e.preventDefault()}
+  if(e.key==='ArrowRight'||e.key==='d'||e.key==='D'){gx=0.15;gy=0;moves++;e.preventDefault()}
+  if(e.key==='r'||e.key==='R')loadLevel(level);
+});
+
+function update(){
+  if(won)return;
+  ball.vx+=gx;ball.vy+=gy;
+  ball.vx*=0.98;ball.vy*=0.98;
+  ball.x+=ball.vx;ball.y+=ball.vy;
+  // wall collision
+  for(const w of walls){
+    const cx=Math.max(w.x,Math.min(ball.x,w.x+w.w));
+    const cy=Math.max(w.y,Math.min(ball.y,w.y+w.h));
+    const dx=ball.x-cx,dy=ball.y-cy,d=Math.sqrt(dx*dx+dy*dy);
+    if(d<ball.r&&d>0){
+      const nx=dx/d,ny=dy/d;
+      ball.x=cx+nx*ball.r;ball.y=cy+ny*ball.r;
+      const dot=ball.vx*nx+ball.vy*ny;
+      ball.vx-=1.5*dot*nx;ball.vy-=1.5*dot*ny;
+      ball.vx*=0.7;ball.vy*=0.7;
+    }
+  }
+  // goal
+  const dx=ball.x-goal.x,dy=ball.y-goal.y;
+  if(Math.sqrt(dx*dx+dy*dy)<ball.r+10)won=true;
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0c1220';ctx.fillRect(0,0,W,H);
+  // grid
+  ctx.strokeStyle='rgba(255,255,255,.04)';ctx.lineWidth=1;
+  for(let i=0;i<=COLS;i++){ctx.beginPath();ctx.moveTo(i*CELL,0);ctx.lineTo(i*CELL,H);ctx.stroke()}
+  for(let i=0;i<=ROWS;i++){ctx.beginPath();ctx.moveTo(0,i*CELL);ctx.lineTo(W,i*CELL);ctx.stroke()}
+  // gravity indicator
+  const ax=W/2+gx*60,ay=H/2+gy*60;
+  ctx.strokeStyle='rgba(6,182,212,.2)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(W/2,H/2);ctx.lineTo(ax,ay);ctx.stroke();
+  // walls
+  ctx.fillStyle='#334155';walls.forEach(w=>ctx.fillRect(w.x,w.y,w.w,w.h));
+  // goal
+  ctx.fillStyle='#22c55e';ctx.globalAlpha=0.5+0.3*Math.sin(Date.now()*0.005);ctx.beginPath();ctx.arc(goal.x,goal.y,10,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+  // ball
+  ctx.fillStyle='#06b6d4';ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.25)';ctx.beginPath();ctx.arc(ball.x-3,ball.y-3,ball.r*0.35,0,Math.PI*2);ctx.fill();
+  // HUD
+  ctx.fillStyle='#fff';ctx.font='bold 14px sans-serif';ctx.textAlign='left';ctx.fillText('关卡 '+(level+1),10,20);
+  ctx.textAlign='right';ctx.fillText('步数: '+moves,W-10,20);
+  if(won){ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(0,0,W,H);ctx.fillStyle='#22c55e';ctx.font='bold 26px sans-serif';ctx.textAlign='center';ctx.fillText('🎉 过关！',W/2,H/2-10);ctx.font='13px sans-serif';ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillText('按 Enter 下一关',W/2,H/2+20)}
+}
+function loop(){update();draw();requestAnimationFrame(loop)}
+loadLevel(0);loop();
+</script></body></html>

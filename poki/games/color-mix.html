@@ -1,0 +1,66 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>颜色混合 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:16px}.target-area{display:flex;align-items:center;gap:16px;font-size:.9rem}.color-circle{width:60px;height:60px;border-radius:50%;border:3px solid rgba(255,255,255,.1)}.mix-area{display:flex;align-items:center;gap:12px}.color-btn{width:48px;height:48px;border-radius:50%;border:2px solid rgba(255,255,255,.1);cursor:pointer;transition:all .15s}.color-btn:hover{transform:scale(1.1);border-color:rgba(255,255,255,.4)}.result-area{display:flex;flex-direction:column;align-items:center;gap:8px}.result-circle{width:80px;height:80px;border-radius:50%;border:3px solid rgba(255,255,255,.15);transition:background .3s}.controls{display:flex;gap:10px}.controls button{padding:6px 16px;border:none;border-radius:16px;background:#334155;color:#fff;font-size:.85rem;cursor:pointer}.controls button.submit{background:#8b5cf6}.score-bar{font-size:.9rem;opacity:.7}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🎨 颜色混合</span></div>
+<div class="container">
+<div id="scorebar" class="score-bar">第 1 关 · 得分: 0</div>
+<div class="target-area"><span>目标颜色：</span><div class="color-circle" id="target"></div></div>
+<div class="mix-area" id="palette"></div>
+<div class="result-area">
+<div>你的混合：</div>
+<div class="result-circle" id="result"></div>
+<div id="match" style="font-size:.85rem;opacity:.5"></div>
+</div>
+<div class="controls">
+<button onclick="resetMix()">重置</button>
+<button class="submit" onclick="submit()">提交</button>
+</div>
+<div class="hint">点击颜色加入混合 · 尽量匹配目标颜色</div>
+</div>
+<script>
+const BASE_COLORS=[
+  {name:'红',r:220,g:38,b:38},{name:'蓝',r:59,g:130,b:246},{name:'黄',r:234,g:179,b:8},
+  {name:'白',r:240,g:240,b:240},{name:'黑',r:30,g:30,b:30},{name:'绿',r:34,g:197,b:94},
+  {name:'紫',r:168,g:85,b:247},{name:'橙',r:249,g:115,b:22}
+];
+let mix=[],targetColor,level=1,score=0;
+
+function rgbStr(r,g,b){return`rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`}
+function genTarget(){
+  // mix 2-3 random base colors
+  const n=2+Math.floor(Math.random()*2);
+  let r=0,g=0,b=0;
+  for(let i=0;i<n;i++){const c=BASE_COLORS[Math.floor(Math.random()*BASE_COLORS.length)];r+=c.r;g+=c.g;b+=c.b}
+  targetColor={r:r/n,g:g/n,b:b/n};
+  document.getElementById('target').style.background=rgbStr(targetColor.r,targetColor.g,targetColor.b);
+}
+function getMixColor(){
+  if(mix.length===0)return{r:128,g:128,b:128};
+  let r=0,g=0,b=0;
+  mix.forEach(c=>{r+=c.r;g+=c.g;b+=c.b});
+  return{r:r/mix.length,g:g/mix.length,b:b/mix.length};
+}
+function updateResult(){
+  const c=getMixColor();
+  document.getElementById('result').style.background=rgbStr(c.r,c.g,c.b);
+  const dist=Math.sqrt((c.r-targetColor.r)**2+(c.g-targetColor.g)**2+(c.b-targetColor.b)**2);
+  const pct=Math.max(0,Math.round(100-dist/4.41));
+  document.getElementById('match').textContent=mix.length?`匹配度: ${pct}%`:'';
+}
+function addColor(c){mix.push(c);updateResult()}
+function resetMix(){mix=[];updateResult();document.getElementById('match').textContent=''}
+function submit(){
+  const c=getMixColor();
+  const dist=Math.sqrt((c.r-targetColor.r)**2+(c.g-targetColor.g)**2+(c.b-targetColor.b)**2);
+  const pts=Math.max(0,Math.round(100-dist/4.41));
+  score+=pts;level++;
+  document.getElementById('scorebar').textContent=`第 ${level} 关 · 得分: ${score}`;
+  resetMix();genTarget();
+}
+// build palette
+const pal=document.getElementById('palette');
+BASE_COLORS.forEach(c=>{
+  const d=document.createElement('div');d.className='color-btn';d.style.background=rgbStr(c.r,c.g,c.b);
+  d.title=c.name;d.addEventListener('click',()=>addColor(c));pal.appendChild(d);
+});
+genTarget();updateResult();
+</script></body></html>

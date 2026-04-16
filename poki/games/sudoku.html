@@ -1,0 +1,94 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>数独 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:16px}.board{display:grid;grid-template-columns:repeat(9,42px);gap:1px;background:#334155;padding:2px;border-radius:6px;box-shadow:0 0 30px rgba(59,130,246,.1)}.cell{width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:600;cursor:pointer;transition:background .15s;user-select:none}.cell.given{color:#94a3b8;cursor:default}.cell.user{color:#60a5fa}.cell.selected{background:#1e3a8a!important}.cell.error{color:#ef4444!important}.cell.same-num{background:#1e293b!important}.numpad{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}.numpad button{width:38px;height:38px;border:none;border-radius:6px;background:#334155;color:#fff;font-size:1rem;font-weight:600;cursor:pointer}.numpad button:hover{background:#475569}.numpad button.active{background:#3b82f6}.status{font-size:.9rem;opacity:.7}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">9️⃣ 数独</span></div>
+<div class="container">
+<div id="status" class="status"></div>
+<div class="board" id="board"></div>
+<div class="numpad" id="numpad"></div>
+<div class="hint">点击格子选中，再点数字填入 · 0 或 Del 清除</div>
+</div>
+<script>
+let puzzle,solution,userGrid,selected=null,errors=new Set();
+
+function generatePuzzle(){
+  // Generate a solved grid then remove cells
+  const g=Array.from({length:9},()=>Array(9).fill(0));
+  function isValid(g,r,c,n){
+    for(let i=0;i<9;i++){if(g[r][i]===n||g[i][c]===n)return false}
+    const br=Math.floor(r/3)*3,bc=Math.floor(c/3)*3;
+    for(let i=br;i<br+3;i++)for(let j=bc;j<bc+3;j++)if(g[i][j]===n)return false;
+    return true;
+  }
+  function solve(g){
+    for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+      if(g[r][c]===0){
+        const nums=[1,2,3,4,5,6,7,8,9].sort(()=>Math.random()-.5);
+        for(const n of nums){if(isValid(g,r,c,n)){g[r][c]=n;if(solve(g))return true;g[r][c]=0}}
+        return false;
+      }
+    }
+    return true;
+  }
+  solve(g);
+  solution=g.map(r=>[...r]);
+  puzzle=g.map(r=>[...r]);
+  // remove ~45 cells
+  let count=45;
+  while(count>0){
+    const r=Math.floor(Math.random()*9),c=Math.floor(Math.random()*9);
+    if(puzzle[r][c]!==0){puzzle[r][c]=0;count--}
+  }
+  userGrid=puzzle.map(r=>[...r]);
+}
+function selectCell(r,c){
+  if(puzzle[r][c]!==0)return;
+  selected={r,c};render();
+}
+function setNumber(n){
+  if(!selected)return;
+  const{r,c}=selected;
+  userGrid[r][c]=n;
+  errors.delete(r*9+c);
+  if(n!==0&&n!==solution[r][c])errors.add(r*9+c);
+  render();
+  // check win
+  if(userGrid.every((row,ri)=>row.every((v,ci)=>v===solution[ri][ci]))){
+    document.getElementById('status').textContent='🎉 完成！';
+    setTimeout(()=>{generatePuzzle();render()},2000);
+  }
+}
+document.addEventListener('keydown',e=>{
+  const n=parseInt(e.key);
+  if(n>=1&&n<=9)setNumber(n);
+  if(e.key==='0'||e.key==='Delete'||e.key==='Backspace')setNumber(0);
+});
+function render(){
+  const board=document.getElementById('board');board.innerHTML='';
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+    const cell=document.createElement('div');cell.className='cell';
+    const v=userGrid[r][c];
+    cell.textContent=v||'';
+    if(puzzle[r][c]!==0)cell.classList.add('given');
+    else cell.classList.add('user');
+    if(selected&&selected.r===r&&selected.c===c)cell.classList.add('selected');
+    if(errors.has(r*9+c))cell.classList.add('error');
+    // borders for 3x3 boxes
+    let bg='#1e293b';
+    if(selected&&v&&v===userGrid[selected.r][selected.c]&&!(r===selected.r&&c===selected.c))cell.classList.add('same-num');
+    cell.style.background=bg;
+    cell.style.borderRight=(c%3===2&&c<8)?'2px solid #475569':'none';
+    cell.style.borderBottom=(r%3===2&&r<8)?'2px solid #475569':'none';
+    cell.addEventListener('click',()=>selectCell(r,c));
+    board.appendChild(cell);
+  }
+  // numpad
+  const numpad=document.getElementById('numpad');numpad.innerHTML='';
+  for(let i=1;i<=9;i++){
+    const btn=document.createElement('button');btn.textContent=i;btn.addEventListener('click',()=>setNumber(i));numpad.appendChild(btn);
+  }
+  const clr=document.createElement('button');clr.textContent='✕';clr.addEventListener('click',()=>setNumber(0));numpad.appendChild(clr);
+  const remaining=userGrid.flat().filter(v=>v===0).length;
+  document.getElementById('status').textContent='剩余 '+remaining+' 格';
+}
+generatePuzzle();render();
+</script></body></html>

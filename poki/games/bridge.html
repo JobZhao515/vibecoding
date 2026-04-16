@@ -1,0 +1,119 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>搭桥过河 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}canvas{border-radius:8px;box-shadow:0 0 30px rgba(132,204,22,.1)}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🌉 搭桥过河</span></div>
+<div class="container">
+<canvas id="game" width="500" height="400"></canvas>
+<div class="hint">按住屏幕/空格 搭桥 · 松开放下桥 · 长度刚好才能过河</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=500,H=400,GROUND_Y=300,PERSON_H=30;
+let pillars,currentPillar,nextPillar,bridge,person,phase,score,best=+localStorage.getItem('bridge_best')||0,cameraX;
+
+function randWidth(){return 30+Math.random()*60}
+function init(){
+  pillars=[];score=0;cameraX=0;
+  const w1=60;pillars.push({x:0,w:w1});
+  const gap=60+Math.random()*80;
+  const w2=randWidth();pillars.push({x:w1+gap,w:w2});
+  currentPillar=0;
+  person={x:pillars[0].x+pillars[0].w/2,y:GROUND_Y};
+  bridge={length:0,growing:false,falling:false,angle:0,placed:false,x:0};
+  phase='idle';
+}
+function nextStep(){
+  currentPillar++;
+  const last=pillars[currentPillar];
+  const gap=60+Math.random()*80;
+  const w=randWidth();
+  pillars.push({x:last.x+last.w+gap,w:w});
+  bridge={length:0,growing:false,falling:false,angle:0,placed:false,x:0};
+  phase='idle';
+}
+document.addEventListener('keydown',e=>{
+  if(e.key===' '){e.preventDefault();startBridge()}
+});
+document.addEventListener('keyup',e=>{
+  if(e.key===' ')releaseBridge();
+});
+canvas.addEventListener('mousedown',startBridge);canvas.addEventListener('mouseup',releaseBridge);
+canvas.addEventListener('touchstart',e=>{e.preventDefault();startBridge()},{passive:false});
+canvas.addEventListener('touchend',releaseBridge);
+
+function startBridge(){
+  if(phase==='gameover'){init();return}
+  if(phase!=='idle')return;
+  phase='growing';bridge.growing=true;bridge.x=pillars[currentPillar].x+pillars[currentPillar].w;
+}
+function releaseBridge(){
+  if(phase!=='growing')return;
+  bridge.growing=false;phase='falling';
+}
+function update(){
+  if(phase==='growing'){bridge.length+=3}
+  else if(phase==='falling'){
+    bridge.angle+=2;
+    if(bridge.angle>=90){bridge.angle=90;bridge.placed=true;phase='walking'}
+  }
+  else if(phase==='walking'){
+    const target=bridge.x+bridge.length;
+    person.x+=2;
+    const np=pillars[currentPillar+1];
+    if(person.x>=target){
+      // check if bridge reaches next pillar
+      if(bridge.length>=np.x-bridge.x&&bridge.length<=np.x+np.w-bridge.x){
+        score++;person.x=np.x+np.w/2;
+        if(score>best){best=score;localStorage.setItem('bridge_best',best)}
+        nextStep();
+      } else {
+        phase='gameover';
+      }
+    }
+  }
+  // camera
+  const targetCam=pillars[currentPillar].x-80;
+  cameraX+=(targetCam-cameraX)*0.05;
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // sky
+  const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#1e3a5f');sky.addColorStop(1,'#0f172a');
+  ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+  // water
+  ctx.fillStyle='#1e40af';ctx.fillRect(0,GROUND_Y,W,H-GROUND_Y);
+  for(let i=0;i<10;i++){ctx.fillStyle='rgba(96,165,250,.1)';ctx.fillRect(Math.sin(Date.now()*0.001+i)*20+i*55-cameraX%55,GROUND_Y+10+i*8,40,3)}
+  ctx.save();ctx.translate(-cameraX,0);
+  // pillars
+  pillars.forEach(p=>{
+    ctx.fillStyle='#65a30d';ctx.fillRect(p.x,GROUND_Y,p.w,H);
+    ctx.fillStyle='#84cc16';ctx.fillRect(p.x,GROUND_Y,p.w,5);
+  });
+  // bridge
+  if(bridge.length>0){
+    ctx.save();ctx.translate(bridge.x,GROUND_Y);ctx.rotate(bridge.angle*Math.PI/180);
+    ctx.fillStyle='#92400e';ctx.fillRect(0,-3,bridge.length,3);
+    ctx.restore();
+  }
+  // person
+  if(phase!=='gameover'){
+    const px=person.x,py=GROUND_Y;
+    ctx.fillStyle='#fbbf24';ctx.beginPath();ctx.arc(px,py-PERSON_H+5,6,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#fbbf24';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(px,py-PERSON_H+11);ctx.lineTo(px,py-10);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(px,py-10);ctx.lineTo(px-5,py);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(px,py-10);ctx.lineTo(px+5,py);ctx.stroke();
+  } else {
+    // falling person
+    ctx.fillStyle='#fbbf24';ctx.globalAlpha=0.5;ctx.beginPath();ctx.arc(person.x,GROUND_Y+40,6,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+  }
+  ctx.restore();
+  // HUD
+  ctx.fillStyle='#fff';ctx.font='bold 18px sans-serif';ctx.textAlign='center';ctx.fillText('得分: '+score,W/2,30);
+  ctx.font='11px sans-serif';ctx.fillStyle='rgba(255,255,255,.4)';ctx.fillText('最高: '+best,W/2,48);
+  if(phase==='gameover'){
+    ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.font='bold 26px sans-serif';ctx.fillText('掉水里了！得分: '+score,W/2,H/2-10);
+    ctx.font='13px sans-serif';ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillText('点击重新开始',W/2,H/2+20);
+  }
+}
+function loop(){update();draw();requestAnimationFrame(loop)}
+init();loop();
+</script></body></html>

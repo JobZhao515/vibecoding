@@ -1,0 +1,70 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>双人相扑 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}canvas{border-radius:50%;box-shadow:0 0 40px rgba(245,158,11,.15)}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🤼 双人相扑</span></div>
+<div class="container">
+<canvas id="game" width="400" height="400"></canvas>
+<div class="hint">P1: WASD · P2: 方向键 · 把对手推出圈外！先到5分获胜</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=400,H=400,CX=W/2,CY=H/2,RING=170,keys={};
+let p1,p2,gameOver,winner;
+
+function init(){
+  p1={x:CX-60,y:CY,vx:0,vy:0,r:20,color:'#ef4444',score:0,name:'P1'};
+  p2={x:CX+60,y:CY,vx:0,vy:0,r:20,color:'#3b82f6',score:0,name:'P2'};
+  gameOver=false;winner=null;
+}
+function resetPos(){p1.x=CX-60;p1.y=CY;p1.vx=p1.vy=0;p2.x=CX+60;p2.y=CY;p2.vx=p2.vy=0}
+document.addEventListener('keydown',e=>{keys[e.key]=true;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault()});
+document.addEventListener('keyup',e=>{keys[e.key]=false});
+
+function update(){
+  if(gameOver)return;
+  const acc=0.4,fric=0.92;
+  if(keys['w']||keys['W'])p1.vy-=acc;if(keys['s']||keys['S'])p1.vy+=acc;
+  if(keys['a']||keys['A'])p1.vx-=acc;if(keys['d']||keys['D'])p1.vx+=acc;
+  if(keys['ArrowUp'])p2.vy-=acc;if(keys['ArrowDown'])p2.vy+=acc;
+  if(keys['ArrowLeft'])p2.vx-=acc;if(keys['ArrowRight'])p2.vx+=acc;
+  [p1,p2].forEach(p=>{p.vx*=fric;p.vy*=fric;p.x+=p.vx;p.y+=p.vy});
+  // collision
+  const dx=p2.x-p1.x,dy=p2.y-p1.y,dist=Math.sqrt(dx*dx+dy*dy);
+  if(dist<p1.r+p2.r&&dist>0){
+    const nx=dx/dist,ny=dy/dist,overlap=(p1.r+p2.r-dist)/2;
+    p1.x-=nx*overlap;p1.y-=ny*overlap;p2.x+=nx*overlap;p2.y+=ny*overlap;
+    const dvx=p1.vx-p2.vx,dvy=p1.vy-p2.vy,dvn=dvx*nx+dvy*ny;
+    p1.vx-=dvn*nx*1.1;p1.vy-=dvn*ny*1.1;p2.vx+=dvn*nx*1.1;p2.vy+=dvn*ny*1.1;
+  }
+  // out of ring
+  [p1,p2].forEach((p,i)=>{
+    const d=Math.sqrt((p.x-CX)**2+(p.y-CY)**2);
+    if(d>RING+p.r){
+      const other=i===0?p2:p1;other.score++;
+      if(other.score>=5){gameOver=true;winner=other.name}
+      else resetPos();
+    }
+  });
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // ring
+  ctx.fillStyle='#2d1f0e';ctx.beginPath();ctx.arc(CX,CY,RING,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#8b6914';ctx.lineWidth=4;ctx.stroke();
+  ctx.strokeStyle='rgba(139,105,20,.3)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(CX,CY,RING-15,0,Math.PI*2);ctx.stroke();
+  // players
+  [p1,p2].forEach(p=>{
+    ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.3)';ctx.beginPath();ctx.arc(p.x-5,p.y-5,p.r*0.35,0,Math.PI*2);ctx.fill();
+  });
+  // scores
+  ctx.font='bold 16px sans-serif';ctx.textAlign='center';
+  ctx.fillStyle=p1.color;ctx.fillText(`P1: ${p1.score}`,CX-60,30);
+  ctx.fillStyle=p2.color;ctx.fillText(`P2: ${p2.score}`,CX+60,30);
+  if(gameOver){ctx.fillStyle='rgba(0,0,0,.6)';ctx.beginPath();ctx.arc(CX,CY,RING,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='bold 26px sans-serif';ctx.fillText(winner+' 获胜！',CX,CY-5);
+    ctx.font='13px sans-serif';ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillText('点击重新开始',CX,CY+25);
+    canvas.onclick=()=>{canvas.onclick=null;init()}}
+}
+function loop(){update();draw();requestAnimationFrame(loop)}
+init();loop();
+</script></body></html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>解压切割 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}canvas{border-radius:8px;background:#1a0a1a;box-shadow:0 0 30px rgba(244,114,182,.1);cursor:crosshair}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🔪 解压切割</span></div>
+<div class="container">
+<canvas id="game" width="400" height="500"></canvas>
+<div class="hint">按住鼠标画线切割形状 · 切得越均匀分越高</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=400,H=500;
+let shapes=[],sliceLine=null,cutting=false,score=0,particles=[];
+const COLORS=['#f472b6','#c084fc','#67e8f9','#a3e635','#fbbf24','#fb923c'];
+
+function spawnShape(){
+  const types=['circle','rect','triangle'];
+  const t=types[Math.floor(Math.random()*types.length)];
+  const color=COLORS[Math.floor(Math.random()*COLORS.length)];
+  const x=60+Math.random()*(W-120),y=60+Math.random()*(H-180);
+  const size=40+Math.random()*40;
+  shapes.push({type:t,x,y,size,color,vy:0,pieces:[]});
+}
+function init(){
+  shapes=[];particles=[];score=0;
+  for(let i=0;i<4;i++)spawnShape();
+}
+function pointInShape(s,px,py){
+  if(s.type==='circle')return Math.sqrt((px-s.x)**2+(py-s.y)**2)<s.size;
+  if(s.type==='rect')return px>s.x-s.size&&px<s.x+s.size&&py>s.y-s.size*0.7&&py<s.y+s.size*0.7;
+  if(s.type==='triangle'){const h=s.size*1.5;return py>s.y-h/2&&py<s.y+h/2&&Math.abs(px-s.x)<(s.y+h/2-py)/h*s.size}
+  return false;
+}
+function lineIntersectsShape(s,x1,y1,x2,y2){
+  const steps=20;
+  for(let i=0;i<=steps;i++){const t=i/steps;if(pointInShape(s,x1+t*(x2-x1),y1+t*(y2-y1)))return true}
+  return false;
+}
+function sliceShape(s,x1,y1,x2,y2){
+  const dx=x2-x1,dy=y2-y1,len=Math.sqrt(dx*dx+dy*dy);
+  const nx=-dy/len,ny=dx/len;
+  for(let k=0;k<8;k++)particles.push({x:s.x+Math.random()*20-10,y:s.y+Math.random()*20-10,vx:(Math.random()-.5)*4,vy:(Math.random()-.5)*4-2,life:30,color:s.color});
+  score+=10;
+  // create two halves
+  return[
+    {...s,x:s.x+nx*10,y:s.y+ny*10,size:s.size*0.7,vy:-2,vx:nx*2},
+    {...s,x:s.x-nx*10,y:s.y-ny*10,size:s.size*0.7,vy:-2,vx:-nx*2},
+  ];
+}
+canvas.addEventListener('mousedown',e=>{cutting=true;const r=canvas.getBoundingClientRect();sliceLine={x1:(e.clientX-r.left)*(W/r.width),y1:(e.clientY-r.top)*(H/r.height),x2:0,y2:0}});
+canvas.addEventListener('mousemove',e=>{if(!cutting||!sliceLine)return;const r=canvas.getBoundingClientRect();sliceLine.x2=(e.clientX-r.left)*(W/r.width);sliceLine.y2=(e.clientY-r.top)*(H/r.height)});
+canvas.addEventListener('mouseup',()=>{
+  if(sliceLine&&cutting){
+    const newShapes=[];let sliced=false;
+    for(const s of shapes){
+      if(!sliced&&lineIntersectsShape(s,sliceLine.x1,sliceLine.y1,sliceLine.x2,sliceLine.y2)){
+        newShapes.push(...sliceShape(s,sliceLine.x1,sliceLine.y1,sliceLine.x2,sliceLine.y2));sliced=true;
+      } else newShapes.push(s);
+    }
+    shapes=newShapes;
+  }
+  cutting=false;sliceLine=null;
+});
+// Touch
+canvas.addEventListener('touchstart',e=>{e.preventDefault();cutting=true;const r=canvas.getBoundingClientRect();const t=e.touches[0];sliceLine={x1:(t.clientX-r.left)*(W/r.width),y1:(t.clientY-r.top)*(H/r.height),x2:0,y2:0}},{passive:false});
+canvas.addEventListener('touchmove',e=>{if(!cutting)return;const r=canvas.getBoundingClientRect();const t=e.touches[0];sliceLine.x2=(t.clientX-r.left)*(W/r.width);sliceLine.y2=(t.clientY-r.top)*(H/r.height)},{passive:true});
+canvas.addEventListener('touchend',()=>{canvas.dispatchEvent(new Event('mouseup'))});
+
+function update(){
+  for(let i=shapes.length-1;i>=0;i--){
+    const s=shapes[i];
+    if(s.vy!==undefined){s.vy+=0.1;s.y+=s.vy;if(s.vx)s.x+=s.vx}
+    if(s.y>H+60)shapes.splice(i,1);
+  }
+  if(shapes.length<3)spawnShape();
+  for(let i=particles.length-1;i>=0;i--){particles[i].x+=particles[i].vx;particles[i].y+=particles[i].vy;particles[i].vy+=0.1;particles[i].life--;if(particles[i].life<=0)particles.splice(i,1)}
+}
+function drawShape(s){
+  ctx.fillStyle=s.color;ctx.globalAlpha=0.8;
+  if(s.type==='circle'){ctx.beginPath();ctx.arc(s.x,s.y,s.size,0,Math.PI*2);ctx.fill()}
+  else if(s.type==='rect'){ctx.beginPath();ctx.roundRect(s.x-s.size,s.y-s.size*0.7,s.size*2,s.size*1.4,8);ctx.fill()}
+  else{ctx.beginPath();ctx.moveTo(s.x,s.y-s.size);ctx.lineTo(s.x-s.size,s.y+s.size*0.7);ctx.lineTo(s.x+s.size,s.y+s.size*0.7);ctx.closePath();ctx.fill()}
+  ctx.globalAlpha=1;
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  shapes.forEach(drawShape);
+  particles.forEach(p=>{ctx.globalAlpha=p.life/30;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fill()});ctx.globalAlpha=1;
+  if(sliceLine&&cutting){ctx.strokeStyle='rgba(255,255,255,.6)';ctx.lineWidth=2;ctx.setLineDash([5,5]);ctx.beginPath();ctx.moveTo(sliceLine.x1,sliceLine.y1);ctx.lineTo(sliceLine.x2,sliceLine.y2);ctx.stroke();ctx.setLineDash([])}
+  ctx.fillStyle='#fff';ctx.font='bold 18px sans-serif';ctx.textAlign='right';ctx.fillText('分数: '+score,W-15,30);
+}
+function loop(){update();draw();requestAnimationFrame(loop)}
+init();loop();
+</script></body></html>

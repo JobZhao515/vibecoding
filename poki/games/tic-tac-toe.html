@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>井字棋 - PlayHub</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}
+.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}
+.back-btn:hover{background:rgba(124,92,252,.4)}
+.game-title{font-size:1.1rem;font-weight:700}
+.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:20px}
+.status{font-size:1.1rem;font-weight:600;min-height:30px}
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:300px;height:300px}
+.cell{background:#252748;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:3rem;cursor:pointer;transition:background .15s,transform .1s;user-select:none}
+.cell:hover{background:#2f3260}
+.cell:active{transform:scale(.95)}
+.cell.x{color:#ef4444}
+.cell.o{color:#3b82f6}
+.cell.win{background:rgba(34,197,94,.2);animation:pulse .5s ease infinite alternate}
+@keyframes pulse{from{transform:scale(1)}to{transform:scale(1.05)}}
+.score-row{display:flex;gap:32px;font-size:.9rem}
+.score-row div{text-align:center}
+.score-row b{font-size:1.3rem;display:block}
+.btns button{padding:8px 24px;border-radius:16px;background:rgba(255,255,255,.08);font-size:.85rem;border:1px solid rgba(255,255,255,.1)}
+.btns button:hover{background:rgba(255,255,255,.15)}
+.difficulty{display:flex;gap:8px;font-size:.8rem}
+.difficulty button{padding:5px 14px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)}
+.difficulty button.active{background:rgba(124,92,252,.3);border-color:#7c5cfc}
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <a class="back-btn" href="../index.html">← 返回</a>
+  <span class="game-title">❌ 井字棋</span>
+</div>
+<div class="container">
+  <div class="difficulty">
+    <button class="active" onclick="setDiff(0,this)">简单</button>
+    <button onclick="setDiff(1,this)">普通</button>
+    <button onclick="setDiff(2,this)">不可能</button>
+  </div>
+  <div class="status" id="status">你的回合 (X)</div>
+  <div class="board" id="board"></div>
+  <div class="score-row">
+    <div>你 (X)<b id="sw">0</b></div>
+    <div>平局<b id="sd">0</b></div>
+    <div>AI (O)<b id="sl">0</b></div>
+  </div>
+  <div class="btns"><button onclick="resetScore()">重置分数</button></div>
+</div>
+<script>
+const boardEl=document.getElementById('board'),statusEl=document.getElementById('status');
+let board,turn,gameOver,diff=0,wins=0,draws=0,losses=0;
+const X='X',O='O';
+const LINES=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+function init(){
+  board=Array(9).fill('');turn=X;gameOver=false;
+  statusEl.textContent='你的回合 (X)';
+  render();
+}
+function render(){
+  boardEl.innerHTML='';
+  board.forEach((v,i)=>{
+    const cell=document.createElement('div');
+    cell.className='cell'+(v===X?' x':'')+(v===O?' o':'');
+    cell.textContent=v;
+    cell.onclick=()=>humanMove(i);
+    boardEl.appendChild(cell);
+  });
+}
+function humanMove(i){
+  if(gameOver||board[i]||turn!==X)return;
+  board[i]=X;turn=O;render();
+  const w=checkWinner();
+  if(w){endGame(w);return}
+  if(board.every(c=>c)){endGame('draw');return}
+  statusEl.textContent='AI 思考中...';
+  setTimeout(aiMove,200);
+}
+function aiMove(){
+  let move;
+  if(diff===0)move=easyAI();
+  else if(diff===1)move=Math.random()<0.6?minimaxMove():easyAI();
+  else move=minimaxMove();
+  board[move]=O;turn=X;render();
+  const w=checkWinner();
+  if(w){endGame(w);return}
+  if(board.every(c=>c)){endGame('draw');return}
+  statusEl.textContent='你的回合 (X)';
+}
+function easyAI(){
+  const empty=board.map((v,i)=>v===''?i:null).filter(v=>v!==null);
+  return empty[Math.floor(Math.random()*empty.length)];
+}
+function minimax(b,isMax,depth){
+  const w=checkWinnerBoard(b);
+  if(w===X)return-10+depth;
+  if(w===O)return 10-depth;
+  if(b.every(c=>c))return 0;
+  if(isMax){
+    let best=-Infinity;
+    for(let i=0;i<9;i++){if(b[i])continue;b[i]=O;best=Math.max(best,minimax(b,false,depth+1));b[i]=''}
+    return best;
+  }else{
+    let best=Infinity;
+    for(let i=0;i<9;i++){if(b[i])continue;b[i]=X;best=Math.min(best,minimax(b,true,depth+1));b[i]=''}
+    return best;
+  }
+}
+function minimaxMove(){
+  let bestScore=-Infinity,bestMove=0;
+  for(let i=0;i<9;i++){
+    if(board[i])continue;
+    board[i]=O;const s=minimax(board,false,0);board[i]='';
+    if(s>bestScore){bestScore=s;bestMove=i}
+  }
+  return bestMove;
+}
+function checkWinnerBoard(b){
+  for(const[a,bb,c]of LINES){if(b[a]&&b[a]===b[bb]&&b[a]===b[c])return b[a]}
+  return null;
+}
+function checkWinner(){return checkWinnerBoard(board)}
+function endGame(result){
+  gameOver=true;
+  if(result==='draw'){draws++;statusEl.textContent='平局！';document.getElementById('sd').textContent=draws}
+  else if(result===X){wins++;statusEl.textContent='你赢了！🎉';document.getElementById('sw').textContent=wins;highlightWin(X)}
+  else{losses++;statusEl.textContent='AI 赢了 😅';document.getElementById('sl').textContent=losses;highlightWin(O)}
+  // Auto restart
+  setTimeout(init,1500);
+}
+function highlightWin(p){
+  for(const[a,b,c]of LINES){
+    if(board[a]===p&&board[b]===p&&board[c]===p){
+      [a,b,c].forEach(i=>boardEl.children[i].classList.add('win'));
+    }
+  }
+}
+function setDiff(d,btn){
+  diff=d;
+  document.querySelectorAll('.difficulty button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');init();
+}
+function resetScore(){wins=0;draws=0;losses=0;
+  document.getElementById('sw').textContent=0;document.getElementById('sd').textContent=0;document.getElementById('sl').textContent=0;
+  init();
+}
+init();
+</script>
+</body>
+</html>

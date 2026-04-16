@@ -1,0 +1,84 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>扫雷 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}.info{display:flex;gap:20px;font-size:.9rem}.info b{color:#6b7280}.board{display:inline-grid;gap:2px;background:#252748;padding:8px;border-radius:10px}.cell{width:32px;height:32px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;cursor:pointer;user-select:none;transition:background .1s}.cell.hidden{background:#4b5563}.cell.hidden:hover{background:#6b7280}.cell.revealed{background:#1f2937}.cell.mine{background:#ef4444}.cell.flag{background:#4b5563}.btns{display:flex;gap:8px}.btns button{padding:6px 16px;border-radius:14px;background:rgba(255,255,255,.08);font-size:.8rem;border:1px solid rgba(255,255,255,.1);color:#fff;cursor:pointer}.btns button:hover{background:rgba(255,255,255,.15)}.btns button.active{background:rgba(239,68,68,.2);border-color:#ef4444;color:#ef4444}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">💣 扫雷</span></div>
+<div class="container">
+<div class="info"><div>💣 <b id="mineCount">10</b></div><div>🚩 <b id="flagCount">0</b></div></div>
+<div class="btns"><button id="modeBtn" onclick="toggleMode()">🚩 标记模式</button><button onclick="init()">重新开始</button></div>
+<div id="board" class="board"></div>
+<div class="hint">点击揭开 · 长按/标记模式放旗帜</div>
+</div>
+<script>
+const ROWS=10,COLS=10,MINES=10;
+let grid,revealed,flags,flagMode=false,gameOver=false,firstClick=true;
+function init(){
+  grid=Array.from({length:ROWS},()=>Array(COLS).fill(0));
+  revealed=Array.from({length:ROWS},()=>Array(COLS).fill(false));
+  flags=Array.from({length:ROWS},()=>Array(COLS).fill(false));
+  gameOver=false;firstClick=true;
+  document.getElementById('mineCount').textContent=MINES;
+  document.getElementById('flagCount').textContent=0;
+  render();
+}
+function placeMines(sr,sc){
+  let placed=0;
+  while(placed<MINES){
+    const r=Math.floor(Math.random()*ROWS),c=Math.floor(Math.random()*COLS);
+    if(grid[r][c]===-1||Math.abs(r-sr)<=1&&Math.abs(c-sc)<=1)continue;
+    grid[r][c]=-1;placed++;
+  }
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(grid[r][c]===-1)continue;
+    let cnt=0;
+    for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){const nr=r+dr,nc=c+dc;if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&grid[nr][nc]===-1)cnt++}
+    grid[r][c]=cnt;
+  }
+}
+function reveal(r,c){
+  if(r<0||r>=ROWS||c<0||c>=COLS||revealed[r][c]||flags[r][c])return;
+  revealed[r][c]=true;
+  if(grid[r][c]===0)for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++)reveal(r+dr,c+dc);
+}
+function click(r,c){
+  if(gameOver)return;
+  if(flagMode){toggleFlag(r,c);return}
+  if(flags[r][c])return;
+  if(firstClick){firstClick=false;placeMines(r,c)}
+  if(grid[r][c]===-1){gameOver=true;revealed=Array.from({length:ROWS},()=>Array(COLS).fill(true));render();return}
+  reveal(r,c);render();checkWin();
+}
+function toggleFlag(r,c){
+  if(gameOver||revealed[r][c])return;
+  flags[r][c]=!flags[r][c];
+  document.getElementById('flagCount').textContent=flags.flat().filter(Boolean).length;
+  render();checkWin();
+}
+function checkWin(){
+  let allRevealed=true;
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){if(grid[r][c]!==-1&&!revealed[r][c])allRevealed=false}
+  if(allRevealed){gameOver=true;render();setTimeout(()=>alert('🎉 恭喜过关！'),100)}
+}
+function toggleMode(){flagMode=!flagMode;document.getElementById('modeBtn').classList.toggle('active',flagMode)}
+const NUM_COLORS=['','#3b82f6','#22c55e','#ef4444','#7c3aed','#b91c1c','#06b6d4','#000','#6b7280'];
+function render(){
+  const board=document.getElementById('board');
+  board.style.gridTemplateColumns=`repeat(${COLS},32px)`;
+  board.innerHTML='';
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const cell=document.createElement('div');
+    cell.className='cell';
+    if(revealed[r][c]){
+      if(grid[r][c]===-1){cell.classList.add('mine');cell.textContent='💣'}
+      else{cell.classList.add('revealed');if(grid[r][c]>0){cell.textContent=grid[r][c];cell.style.color=NUM_COLORS[grid[r][c]]}}
+    }else{
+      cell.classList.add('hidden');
+      if(flags[r][c]){cell.classList.add('flag');cell.textContent='🚩'}
+    }
+    cell.onclick=()=>click(r,c);
+    let longTimer;
+    cell.addEventListener('touchstart',e=>{e.preventDefault();longTimer=setTimeout(()=>{toggleFlag(r,c);longTimer=null},400)},{passive:false});
+    cell.addEventListener('touchend',e=>{if(longTimer){clearTimeout(longTimer);click(r,c)}});
+    board.appendChild(cell);
+  }
+}
+init();
+</script></body></html>

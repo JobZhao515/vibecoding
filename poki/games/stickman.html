@@ -1,0 +1,95 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>火柴人快跑 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}canvas{border-radius:8px;box-shadow:0 0 30px rgba(244,63,94,.1)}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🏃‍♂️ 火柴人快跑</span></div>
+<div class="container">
+<canvas id="game" width="600" height="300"></canvas>
+<div class="hint">空格/点击跳跃 · ↓ 滑行 · 避开障碍跑得更远</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=600,H=300,GROUND=H-40,keys={};
+let player,obstacles,score,best=+localStorage.getItem('stick_best')||0,speed,running,frame;
+
+function init(){
+  player={x:80,y:GROUND,vy:0,h:40,sliding:false,jumpCount:0};
+  obstacles=[];score=0;speed=4;running=true;frame=0;
+  loop();
+}
+document.addEventListener('keydown',e=>{
+  keys[e.key]=true;
+  if(e.key===' '||e.key==='ArrowUp'){e.preventDefault();jump()}
+  if(e.key==='ArrowDown'){e.preventDefault();player.sliding=true}
+});
+document.addEventListener('keyup',e=>{keys[e.key]=false;if(e.key==='ArrowDown')player.sliding=false});
+canvas.addEventListener('click',jump);canvas.addEventListener('touchstart',e=>{e.preventDefault();jump()},{passive:false});
+
+function jump(){
+  if(!running){init();return}
+  if(player.jumpCount<2){player.vy=-10;player.jumpCount++}
+}
+function spawnObs(){
+  const t=Math.random();
+  if(t<0.4)obstacles.push({x:W+20,y:GROUND,w:15,h:30+Math.random()*20,type:'box'});
+  else if(t<0.7)obstacles.push({x:W+20,y:GROUND-50-Math.random()*30,w:30,h:10,type:'bar'});
+  else obstacles.push({x:W+20,y:GROUND,w:20,h:50,type:'tall'});
+}
+function update(){
+  if(!running)return;
+  frame++;score=Math.floor(frame/6);speed=4+score/80;
+  player.vy+=0.55;player.y+=player.vy;
+  if(player.y>=GROUND){player.y=GROUND;player.vy=0;player.jumpCount=0}
+  player.h=player.sliding?20:40;
+  if(frame%Math.max(30,80-score)===0)spawnObs();
+  for(let i=obstacles.length-1;i>=0;i--){
+    const o=obstacles[i];o.x-=speed;
+    if(o.x+o.w<0){obstacles.splice(i,1);continue}
+    // collision
+    const px=player.x,py=player.y-player.h,pw=16,ph=player.h;
+    if(px+pw>o.x&&px<o.x+o.w){
+      if(o.type==='bar'){if(py<o.y&&player.y>o.y-o.h){die();return}}
+      else{if(player.y>o.y-o.h){die();return}}
+    }
+  }
+}
+function die(){
+  running=false;if(score>best){best=score;localStorage.setItem('stick_best',best)}
+  draw();ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#fff';ctx.font='bold 28px sans-serif';ctx.textAlign='center';ctx.fillText('距离: '+score,W/2,H/2-10);
+  ctx.font='13px sans-serif';ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillText('点击重新开始',W/2,H/2+20);
+}
+function drawStickman(){
+  const sx=player.x,sy=player.y,sl=player.sliding;
+  ctx.strokeStyle='#fff';ctx.lineWidth=2.5;ctx.lineCap='round';
+  if(sl){
+    // sliding pose
+    ctx.beginPath();ctx.arc(sx+10,sy-10,6,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(sx+4,sy-8);ctx.lineTo(sx-8,sy-4);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(sx-8,sy-4);ctx.lineTo(sx-16,sy);ctx.stroke();ctx.beginPath();ctx.moveTo(sx-8,sy-4);ctx.lineTo(sx-4,sy);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(sx+4,sy-8);ctx.lineTo(sx+12,sy-2);ctx.stroke();
+  } else {
+    const legAnim=Math.sin(frame*0.3)*8;
+    ctx.beginPath();ctx.arc(sx,sy-35,6,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(sx,sy-29);ctx.lineTo(sx,sy-14);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(sx,sy-14);ctx.lineTo(sx-6+legAnim,sy);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(sx,sy-14);ctx.lineTo(sx+6-legAnim,sy);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(sx,sy-25);ctx.lineTo(sx-6-legAnim*0.5,sy-18);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(sx,sy-25);ctx.lineTo(sx+6+legAnim*0.5,sy-18);ctx.stroke();
+  }
+}
+function draw(){
+  const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#1e293b');bg.addColorStop(1,'#0f172a');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#334155';ctx.fillRect(0,GROUND,W,H-GROUND);ctx.strokeStyle='#475569';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,GROUND);ctx.lineTo(W,GROUND);ctx.stroke();
+  // obstacles
+  obstacles.forEach(o=>{
+    if(o.type==='bar'){ctx.fillStyle='#f43f5e';ctx.fillRect(o.x,o.y-o.h,o.w,o.h)}
+    else if(o.type==='tall'){ctx.fillStyle='#f97316';ctx.fillRect(o.x,o.y-o.h,o.w,o.h)}
+    else{ctx.fillStyle='#ef4444';ctx.fillRect(o.x,o.y-o.h,o.w,o.h)}
+  });
+  drawStickman();
+  ctx.fillStyle='#fff';ctx.font='bold 18px sans-serif';ctx.textAlign='right';ctx.fillText(score,W-15,30);
+  ctx.font='11px sans-serif';ctx.fillStyle='rgba(255,255,255,.4)';ctx.fillText('最高:'+best,W-15,48);
+}
+function loop(){update();draw();if(running)requestAnimationFrame(loop)}
+init();
+</script></body></html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>合成大西瓜 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}canvas{border-radius:8px;background:#2d1810;box-shadow:0 0 40px rgba(239,68,68,.12)}.score-bar{display:flex;gap:20px;font-size:.9rem}.score-bar b{color:#ef4444}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🍉 合成大西瓜</span></div>
+<div class="container">
+<div class="score-bar"><div>得分：<b id="score">0</b></div><div>最高：<b id="best">0</b></div></div>
+<canvas id="game" width="400" height="500"></canvas>
+<div class="hint">点击放置水果 · 相同水果碰撞合成更大的</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=400,H=500,WALL=10;
+const FRUITS=[
+  {r:15,color:'#ef4444',name:'🍒',pts:1},
+  {r:22,color:'#f97316',name:'🍊',pts:3},
+  {r:30,color:'#eab308',name:'🍋',pts:6},
+  {r:36,color:'#a855f7',name:'🍇',pts:10},
+  {r:42,color:'#ec4899',name:'🍑',pts:15},
+  {r:50,color:'#ef4444',name:'🍎',pts:21},
+  {r:58,color:'#22c55e',name:'🍉',pts:28},
+];
+let balls=[],nextFruit=0,score=0,best=+localStorage.getItem('wm_best')||0,dropX=W/2,canDrop=true,gameOver=false;
+document.getElementById('best').textContent=best;
+const GRAVITY=0.3,DAMP=0.7,FRICTION=0.99;
+
+function newBall(x,y,level){return{x,y,vx:0,vy:0,r:FRUITS[level].r,level,merged:false}}
+function drop(){
+  if(!canDrop||gameOver)return;
+  const b=newBall(dropX,40,nextFruit);
+  balls.push(b);canDrop=false;
+  nextFruit=Math.floor(Math.random()*3);
+  setTimeout(()=>{canDrop=true},400);
+}
+function update(){
+  if(gameOver)return;
+  for(const b of balls){
+    b.vy+=GRAVITY;b.x+=b.vx;b.y+=b.vy;
+    b.vx*=FRICTION;
+    // walls
+    if(b.x-b.r<WALL){b.x=WALL+b.r;b.vx*=-DAMP}
+    if(b.x+b.r>W-WALL){b.x=W-WALL-b.r;b.vx*=-DAMP}
+    if(b.y+b.r>H-WALL){b.y=H-WALL-b.r;b.vy*=-DAMP}
+    if(b.y-b.r<0){b.y=b.r;b.vy*=-DAMP}
+  }
+  // collisions
+  for(let i=0;i<balls.length;i++){
+    for(let j=i+1;j<balls.length;j++){
+      const a=balls[i],b=balls[j];
+      const dx=b.x-a.x,dy=b.y-a.y,dist=Math.sqrt(dx*dx+dy*dy);
+      const minD=a.r+b.r;
+      if(dist<minD&&dist>0){
+        const nx=dx/dist,ny=dy/dist,overlap=(minD-dist)/2;
+        a.x-=nx*overlap;a.y-=ny*overlap;b.x+=nx*overlap;b.y+=ny*overlap;
+        const dvx=a.vx-b.vx,dvy=a.vy-b.vy;
+        const dvn=dvx*nx+dvy*ny;
+        if(dvn>0){a.vx-=dvn*nx*DAMP;a.vy-=dvn*ny*DAMP;b.vx+=dvn*nx*DAMP;b.vy+=dvn*ny*DAMP}
+        // merge
+        if(a.level===b.level&&!a.merged&&!b.merged&&a.level<FRUITS.length-1){
+          a.merged=b.merged=true;
+          const nl=a.level+1;
+          const nb=newBall((a.x+b.x)/2,(a.y+b.y)/2,nl);
+          nb.vx=(a.vx+b.vx)/2;nb.vy=(a.vy+b.vy)/2;
+          balls.push(nb);
+          score+=FRUITS[nl].pts;
+          document.getElementById('score').textContent=score;
+          if(score>best){best=score;localStorage.setItem('wm_best',best);document.getElementById('best').textContent=best}
+        }
+      }
+    }
+  }
+  balls=balls.filter(b=>!b.merged);
+  // game over check
+  if(balls.some(b=>b.y-b.r<30&&Math.abs(b.vy)<0.5)){
+    const settled=balls.filter(b=>b.y-b.r<30&&Math.abs(b.vy)<0.5);
+    if(settled.length>0&&!canDrop){}// could trigger game over
+  }
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#3d2415';ctx.fillRect(0,0,WALL,H);ctx.fillRect(W-WALL,0,WALL,H);ctx.fillRect(0,H-WALL,W,WALL);
+  // drop line
+  if(canDrop){ctx.strokeStyle='rgba(255,255,255,.15)';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(dropX,40);ctx.lineTo(dropX,H);ctx.stroke();ctx.setLineDash([]);
+    const nf=FRUITS[nextFruit];ctx.fillStyle=nf.color;ctx.globalAlpha=.5;ctx.beginPath();ctx.arc(dropX,40,nf.r,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+    ctx.font=`${nf.r}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(nf.name,dropX,40);
+  }
+  for(const b of balls){
+    const f=FRUITS[b.level];
+    const g=ctx.createRadialGradient(b.x-b.r*.2,b.y-b.r*.2,b.r*.1,b.x,b.y,b.r);
+    g.addColorStop(0,f.color+'cc');g.addColorStop(1,f.color);
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
+    ctx.font=`${b.r*1.1}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(f.name,b.x,b.y);
+  }
+}
+function loop(){update();draw();requestAnimationFrame(loop)}
+canvas.addEventListener('mousemove',e=>{const r=canvas.getBoundingClientRect();dropX=Math.max(WALL+20,Math.min(W-WALL-20,(e.clientX-r.left)*(W/r.width)))});
+canvas.addEventListener('click',drop);
+canvas.addEventListener('touchstart',e=>{e.preventDefault();const r=canvas.getBoundingClientRect();dropX=(e.touches[0].clientX-r.left)*(W/r.width);drop()},{passive:false});
+canvas.addEventListener('touchmove',e=>{const r=canvas.getBoundingClientRect();dropX=(e.touches[0].clientX-r.left)*(W/r.width)},{passive:true});
+loop();
+</script></body></html>

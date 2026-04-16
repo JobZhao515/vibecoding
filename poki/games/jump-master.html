@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>跳跃大师 - PlayHub</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}
+.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}
+.back-btn:hover{background:rgba(124,92,252,.4)}
+.game-title{font-size:1.1rem;font-weight:700}
+.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}
+canvas{border-radius:8px;background:#071520;box-shadow:0 0 40px rgba(20,184,166,.12)}
+.hint{font-size:.75rem;opacity:.4}
+.controls{display:flex;gap:8px;margin-top:4px}
+.controls button{width:60px;height:50px;border-radius:10px;background:rgba(255,255,255,.08);font-size:1.1rem;border:1px solid rgba(255,255,255,.1)}
+.controls button:hover{background:rgba(255,255,255,.15)}
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <a class="back-btn" href="../index.html">← 返回</a>
+  <span class="game-title">⬆️ 跳跃大师</span>
+</div>
+<div class="container">
+  <canvas id="game" width="400" height="600"></canvas>
+  <div class="hint">← → 方向键 / A D / 滑动移动</div>
+  <div class="controls">
+    <button id="btnL">←</button>
+    <button id="btnR">→</button>
+  </div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=400,H=600;
+let player,platforms,score,bestScore=+localStorage.getItem('jump_best')||0,cameraY,running,started;
+const GRAVITY=0.35,BOUNCE=-10,PLAT_COUNT=8;
+
+function init(){
+  player={x:W/2-15,y:H-80,w:30,h:30,vx:0,vy:0};
+  platforms=[];cameraY=0;score=0;running=false;started=false;
+  // Initial platforms
+  platforms.push({x:W/2-30,y:H-40,w:60,type:'normal'});
+  for(let i=1;i<PLAT_COUNT;i++){
+    platforms.push(makePlatform(H-40-i*(H/PLAT_COUNT)));
+  }
+  drawStart();
+}
+function makePlatform(y){
+  const types=['normal','normal','normal','moving','fragile'];
+  const type=types[Math.floor(Math.random()*types.length)];
+  const w=type==='fragile'?50:60;
+  return{x:Math.random()*(W-w),y,w,type,dir:type==='moving'?(Math.random()>.5?1:-1):0,broken:false};
+}
+function drawStart(){
+  draw();
+  ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#fff';ctx.font='bold 26px sans-serif';ctx.textAlign='center';
+  ctx.fillText('⬆️ 跳跃大师',W/2,H/2-30);
+  ctx.font='15px sans-serif';ctx.fillStyle='rgba(255,255,255,.6)';
+  ctx.fillText('点击或按任意键开始',W/2,H/2+10);
+  if(bestScore)ctx.fillText(`最高: ${bestScore}`,W/2,H/2+40);
+}
+function start(){if(started)return;started=true;running=true;player.vy=BOUNCE;loop()}
+function update(){
+  if(!running)return;
+  // Horizontal movement
+  player.x+=player.vx;
+  // Wrap around
+  if(player.x+player.w<0)player.x=W;
+  if(player.x>W)player.x=-player.w;
+  // Gravity
+  player.vy+=GRAVITY;player.y+=player.vy;
+  // Moving platforms
+  platforms.forEach(p=>{
+    if(p.type==='moving'){p.x+=p.dir*1.5;if(p.x<0||p.x+p.w>W)p.dir*=-1}
+  });
+  // Land on platform (only when falling)
+  if(player.vy>0){
+    platforms.forEach(p=>{
+      if(p.broken)return;
+      if(player.x+player.w>p.x&&player.x<p.x+p.w&&
+         player.y+player.h>=p.y&&player.y+player.h<=p.y+10){
+        if(p.type==='fragile'){p.broken=true;return}
+        player.vy=BOUNCE;player.y=p.y-player.h;
+      }
+    });
+  }
+  // Camera scroll
+  if(player.y<H/2){
+    const diff=H/2-player.y;
+    cameraY+=diff;player.y=H/2;
+    platforms.forEach(p=>p.y+=diff);
+    score=Math.max(score,Math.floor(cameraY/10));
+  }
+  // Remove off-screen platforms & add new
+  platforms=platforms.filter(p=>p.y<H+20);
+  while(platforms.length<PLAT_COUNT){
+    const topY=Math.min(...platforms.map(p=>p.y));
+    platforms.push(makePlatform(topY-H/PLAT_COUNT-Math.random()*30));
+  }
+  // Fall off screen
+  if(player.y>H+50)gameOver();
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // BG gradient
+  const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#041520');bg.addColorStop(1,'#0a2a35');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  // Platforms
+  platforms.forEach(p=>{
+    if(p.broken){
+      ctx.globalAlpha=.3;ctx.fillStyle='#666';
+      ctx.fillRect(p.x,p.y,p.w/2-2,6);ctx.fillRect(p.x+p.w/2+2,p.y+4,p.w/2-2,6);
+      ctx.globalAlpha=1;return;
+    }
+    const colors={normal:'#14b8a6',moving:'#f59e0b',fragile:'#ef4444'};
+    ctx.fillStyle=colors[p.type]||'#14b8a6';
+    ctx.beginPath();ctx.roundRect(p.x,p.y,p.w,8,4);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.2)';ctx.fillRect(p.x+4,p.y,p.w-8,3);
+  });
+  // Player
+  ctx.fillStyle='#14b8a6';
+  ctx.beginPath();ctx.roundRect(player.x,player.y,player.w,player.h,6);ctx.fill();
+  // Face
+  ctx.fillStyle='#fff';ctx.fillRect(player.x+7,player.y+8,5,5);ctx.fillRect(player.x+18,player.y+8,5,5);
+  ctx.fillStyle='#111';ctx.fillRect(player.x+9,player.y+10,2,2);ctx.fillRect(player.x+20,player.y+10,2,2);
+  // Mouth
+  if(player.vy<0){ctx.fillStyle='#fff';ctx.fillRect(player.x+11,player.y+18,8,3)} // happy going up
+  else{ctx.fillStyle='#888';ctx.fillRect(player.x+12,player.y+20,6,2)} // neutral falling
+  // Score
+  ctx.fillStyle='#fff';ctx.font='bold 22px sans-serif';ctx.textAlign='left';
+  ctx.fillText(score,15,35);
+  ctx.font='11px sans-serif';ctx.fillStyle='rgba(255,255,255,.4)';
+  ctx.fillText(`最高: ${bestScore}`,15,55);
+}
+function gameOver(){
+  running=false;
+  if(score>bestScore){bestScore=score;localStorage.setItem('jump_best',bestScore)}
+  draw();
+  ctx.fillStyle='rgba(0,0,0,.65)';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#fff';ctx.font='bold 30px sans-serif';ctx.textAlign='center';
+  ctx.fillText(score,W/2,H/2-15);
+  ctx.font='14px sans-serif';ctx.fillStyle='rgba(255,255,255,.5)';
+  ctx.fillText('点击重新开始',W/2,H/2+20);
+  canvas.onclick=()=>{canvas.onclick=onClick;init()};
+}
+function loop(){update();draw();if(running)requestAnimationFrame(loop)}
+
+const keys={};
+document.addEventListener('keydown',e=>{
+  keys[e.key]=true;
+  if(!started){start();return}
+  if(['ArrowLeft','ArrowRight','a','d'].includes(e.key))e.preventDefault();
+});
+document.addEventListener('keyup',e=>{keys[e.key]=false;player.vx=0;
+  if(keys['ArrowLeft']||keys['a']||keys['A'])player.vx=-5;
+  if(keys['ArrowRight']||keys['d']||keys['D'])player.vx=5;
+});
+// Continuous key handling in update
+const origUpdate=update;
+const wrappedUpdate=()=>{
+  if(keys['ArrowLeft']||keys['a']||keys['A'])player.vx=-5;
+  else if(keys['ArrowRight']||keys['d']||keys['D'])player.vx=5;
+  else player.vx*=0.85;
+  origUpdate();
+};
+// Replace update reference
+let updateFn=wrappedUpdate;
+function loop2(){updateFn();draw();if(running)requestAnimationFrame(loop2)}
+// Override loop
+function onClick(){if(!started)start();else if(!running)init()}
+canvas.addEventListener('click',onClick);
+canvas.addEventListener('touchstart',e=>{e.preventDefault();onClick()},{passive:false});
+// Touch move
+let touchX=null;
+canvas.addEventListener('touchstart',e=>{touchX=e.touches[0].clientX},{passive:true});
+canvas.addEventListener('touchmove',e=>{
+  if(touchX===null)return;
+  const dx=e.touches[0].clientX-touchX;player.vx=dx*0.15;
+},{passive:true});
+canvas.addEventListener('touchend',()=>{touchX=null;player.vx*=0.5});
+// Button controls
+const btnL=document.getElementById('btnL'),btnR=document.getElementById('btnR');
+btnL.addEventListener('touchstart',e=>{e.preventDefault();keys['ArrowLeft']=true},{passive:false});
+btnL.addEventListener('touchend',()=>{keys['ArrowLeft']=false});
+btnR.addEventListener('touchstart',e=>{e.preventDefault();keys['ArrowRight']=true},{passive:false});
+btnR.addEventListener('touchend',()=>{keys['ArrowRight']=false});
+
+// Fix: use wrapped update in actual loop
+function realLoop(){wrappedUpdate();draw();if(running)requestAnimationFrame(realLoop)}
+// Patch start
+const origStart=start;
+start=function(){if(started)return;started=true;running=true;player.vy=BOUNCE;realLoop()};
+
+init();
+</script>
+</body>
+</html>

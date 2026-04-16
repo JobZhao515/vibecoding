@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>泡泡消除 - PlayHub</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}
+.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}
+.back-btn:hover{background:rgba(124,92,252,.4)}
+.game-title{font-size:1.1rem;font-weight:700}
+.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}
+.score-bar{display:flex;gap:24px;font-size:.9rem}
+.score-bar span{opacity:.5}
+.score-bar b{color:#06b6d4}
+canvas{border-radius:8px;background:#060d18;box-shadow:0 0 40px rgba(6,182,212,.12);cursor:crosshair}
+.hint{font-size:.75rem;opacity:.4}
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <a class="back-btn" href="../index.html">← 返回</a>
+  <span class="game-title">🫧 泡泡消除</span>
+</div>
+<div class="container">
+  <div class="score-bar">
+    <div><span>得分：</span><b id="score">0</b></div>
+  </div>
+  <canvas id="game" width="400" height="500"></canvas>
+  <div class="hint">移动鼠标瞄准，点击发射泡泡 · 3个以上同色消除</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=400,H=500;
+const R=18,COLS=11; // bubble radius, columns per row
+const COLORS=['#ef4444','#22c55e','#3b82f6','#f59e0b','#a855f7','#ec4899'];
+const ROW_H=R*1.73;
+let bubbles,shooter,nextColor,aimAngle,flying,score,gameOver;
+
+function init(){
+  bubbles=[];score=0;gameOver=false;
+  document.getElementById('score').textContent=0;
+  // Create initial rows
+  for(let row=0;row<5;row++){
+    const cols=row%2===0?COLS:COLS-1;
+    for(let c=0;c<cols;c++){
+      bubbles.push({row,col:c,color:COLORS[Math.floor(Math.random()*5)],...getPos(row,c)});
+    }
+  }
+  shooter={x:W/2,y:H-30};
+  nextColor=COLORS[Math.floor(Math.random()*5)];
+  aimAngle=-Math.PI/2;flying=null;
+  draw();
+}
+function getPos(row,col){
+  const offset=row%2===0?R:R*2;
+  return{x:offset+col*R*2,y:R+row*ROW_H};
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // Bubbles
+  bubbles.forEach(b=>{
+    const grad=ctx.createRadialGradient(b.x-4,b.y-4,2,b.x,b.y,R);
+    grad.addColorStop(0,'rgba(255,255,255,.3)');grad.addColorStop(.5,b.color);grad.addColorStop(1,b.color);
+    ctx.fillStyle=grad;ctx.beginPath();ctx.arc(b.x,b.y,R-1,0,Math.PI*2);ctx.fill();
+  });
+  // Flying bubble
+  if(flying){
+    ctx.fillStyle=flying.color;ctx.beginPath();ctx.arc(flying.x,flying.y,R-1,0,Math.PI*2);ctx.fill();
+  }
+  // Shooter
+  ctx.fillStyle=nextColor;ctx.beginPath();ctx.arc(shooter.x,shooter.y,R-1,0,Math.PI*2);ctx.fill();
+  // Aim line
+  ctx.strokeStyle='rgba(255,255,255,.2)';ctx.lineWidth=1;ctx.setLineDash([5,5]);
+  ctx.beginPath();ctx.moveTo(shooter.x,shooter.y);
+  ctx.lineTo(shooter.x+Math.cos(aimAngle)*120,shooter.y+Math.sin(aimAngle)*120);
+  ctx.stroke();ctx.setLineDash([]);
+  // Game over
+  if(gameOver){
+    ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#fff';ctx.font='bold 26px sans-serif';ctx.textAlign='center';
+    ctx.fillText('游戏结束',W/2,H/2-20);
+    ctx.font='bold 36px sans-serif';ctx.fillText(score,W/2,H/2+25);
+    ctx.font='14px sans-serif';ctx.fillStyle='rgba(255,255,255,.5)';
+    ctx.fillText('点击重新开始',W/2,H/2+55);
+  }
+}
+function shoot(){
+  if(flying||gameOver)return;
+  const speed=10;
+  flying={x:shooter.x,y:shooter.y,vx:Math.cos(aimAngle)*speed,vy:Math.sin(aimAngle)*speed,color:nextColor};
+  nextColor=COLORS[Math.floor(Math.random()*5)];
+  animateFlying();
+}
+function animateFlying(){
+  if(!flying)return;
+  flying.x+=flying.vx;flying.y+=flying.vy;
+  // Wall bounce
+  if(flying.x-R<0||flying.x+R>W){flying.vx*=-1;flying.x=Math.max(R,Math.min(W-R,flying.x))}
+  // Hit ceiling
+  if(flying.y-R<=0){snapBubble();return}
+  // Hit existing bubble
+  for(const b of bubbles){
+    const dx=flying.x-b.x,dy=flying.y-b.y;
+    if(Math.sqrt(dx*dx+dy*dy)<R*1.8){snapBubble();return}
+  }
+  draw();requestAnimationFrame(animateFlying);
+}
+function snapBubble(){
+  // Find nearest grid position
+  let bestRow=0,bestCol=0,bestDist=Infinity;
+  for(let row=0;row<20;row++){
+    const cols=row%2===0?COLS:COLS-1;
+    for(let c=0;c<cols;c++){
+      const p=getPos(row,c);
+      const dx=flying.x-p.x,dy=flying.y-p.y,d=Math.sqrt(dx*dx+dy*dy);
+      if(d<bestDist&&!bubbles.find(b=>b.row===row&&b.col===c)){
+        bestDist=d;bestRow=row;bestCol=c;
+      }
+    }
+  }
+  const pos=getPos(bestRow,bestCol);
+  bubbles.push({row:bestRow,col:bestCol,color:flying.color,...pos});
+  flying=null;
+  // Check matches
+  const matched=findConnected(bestRow,bestCol,bubbles[bubbles.length-1].color);
+  if(matched.size>=3){
+    matched.forEach(key=>{const idx=bubbles.findIndex(b=>`${b.row},${b.col}`===key);if(idx>=0)bubbles.splice(idx,1)});
+    score+=matched.size*10;
+    // Remove floating bubbles
+    const floating=findFloating();
+    score+=floating.length*5;
+    bubbles=bubbles.filter(b=>!floating.includes(b));
+    document.getElementById('score').textContent=score;
+  }
+  // Check game over
+  if(bubbles.some(b=>b.y+R>H-60)){gameOver=true}
+  draw();
+  if(gameOver){canvas.onclick=()=>{canvas.onclick=canvasClick;init()}}
+}
+function findConnected(row,col,color){
+  const visited=new Set();
+  const stack=[`${row},${col}`];
+  while(stack.length){
+    const key=stack.pop();
+    if(visited.has(key))continue;
+    const b=bubbles.find(b=>`${b.row},${b.col}`===key);
+    if(!b||b.color!==color)continue;
+    visited.add(key);
+    // Neighbors
+    const neighbors=getNeighbors(b.row,b.col);
+    neighbors.forEach(n=>stack.push(`${n.row},${n.col}`));
+  }
+  return visited;
+}
+function getNeighbors(row,col){
+  const even=row%2===0;
+  const offsets=even?
+    [[-1,-1],[-1,0],[0,-1],[0,1],[1,-1],[1,0]]:
+    [[-1,0],[-1,1],[0,-1],[0,1],[1,0],[1,1]];
+  return offsets.map(([dr,dc])=>({row:row+dr,col:col+dc}));
+}
+function findFloating(){
+  // BFS from top row
+  const attached=new Set();
+  const queue=bubbles.filter(b=>b.row===0).map(b=>`${b.row},${b.col}`);
+  queue.forEach(k=>attached.add(k));
+  while(queue.length){
+    const key=queue.shift();
+    const b=bubbles.find(b=>`${b.row},${b.col}`===key);
+    if(!b)continue;
+    getNeighbors(b.row,b.col).forEach(n=>{
+      const nk=`${n.row},${n.col}`;
+      if(!attached.has(nk)&&bubbles.find(b=>`${b.row},${b.col}`===nk)){
+        attached.add(nk);queue.push(nk);
+      }
+    });
+  }
+  return bubbles.filter(b=>!attached.has(`${b.row},${b.col}`));
+}
+canvas.addEventListener('mousemove',e=>{
+  const rect=canvas.getBoundingClientRect();
+  const mx=(e.clientX-rect.left)*(W/rect.width),my=(e.clientY-rect.top)*(H/rect.height);
+  aimAngle=Math.atan2(my-shooter.y,mx-shooter.x);
+  if(aimAngle>-0.15)aimAngle=-0.15;if(aimAngle<-Math.PI+0.15)aimAngle=-Math.PI+0.15;
+  if(!flying)draw();
+});
+function canvasClick(){shoot()}
+canvas.addEventListener('click',canvasClick);
+canvas.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  const rect=canvas.getBoundingClientRect();
+  const mx=(e.touches[0].clientX-rect.left)*(W/rect.width),my=(e.touches[0].clientY-rect.top)*(H/rect.height);
+  aimAngle=Math.atan2(my-shooter.y,mx-shooter.x);
+  if(aimAngle>-0.15)aimAngle=-0.15;if(aimAngle<-Math.PI+0.15)aimAngle=-Math.PI+0.15;
+  shoot();
+},{passive:false});
+init();
+</script>
+</body>
+</html>

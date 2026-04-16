@@ -1,0 +1,90 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>忍者跳跃 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}canvas{border-radius:8px;background:#0f172a;box-shadow:0 0 30px rgba(30,41,59,.3)}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🥷 忍者跳跃</span></div>
+<div class="container">
+<canvas id="game" width="360" height="540"></canvas>
+<div class="hint">← → 或触屏左右移动 · 自动跳跃，不断攀爬</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=360,H=540;
+let ninja,platforms,score,best=+localStorage.getItem('ninja_best')||0,camera,running;
+
+function init(){
+  ninja={x:W/2,y:H-60,vx:0,vy:0,w:20,h:24,dir:1};
+  platforms=[];camera=0;score=0;running=true;
+  // initial platforms
+  for(let i=0;i<12;i++)platforms.push({x:Math.random()*(W-70),y:H-i*48,w:60+Math.random()*20,type:Math.random()<0.15?'moving':'static',vx:Math.random()<0.5?1:-1});
+  platforms.push({x:W/2-40,y:H-20,w:80,type:'static',vx:0});
+  ninja.vy=-10;
+  loop();
+}
+const keys={};
+document.addEventListener('keydown',e=>{keys[e.key]=true;if(['ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault()});
+document.addEventListener('keyup',e=>{keys[e.key]=false});
+let touchX=null;
+canvas.addEventListener('touchstart',e=>{touchX=e.touches[0].clientX},{passive:true});
+canvas.addEventListener('touchmove',e=>{const nx=e.touches[0].clientX;ninja.vx=(nx-touchX)*0.2;touchX=nx},{passive:true});
+
+function update(){
+  if(!running)return;
+  if(keys['ArrowLeft']||keys['a']||keys['A'])ninja.vx-=0.6;
+  if(keys['ArrowRight']||keys['d']||keys['D'])ninja.vx+=0.6;
+  ninja.vx*=0.9;ninja.vy+=0.35;
+  ninja.x+=ninja.vx;ninja.y+=ninja.vy;
+  if(ninja.vx>0.5)ninja.dir=1;if(ninja.vx<-0.5)ninja.dir=-1;
+  // wrap
+  if(ninja.x<-ninja.w)ninja.x=W;if(ninja.x>W)ninja.x=-ninja.w;
+  // platform collision (only falling)
+  if(ninja.vy>0){
+    for(const p of platforms){
+      const py=p.y-camera;
+      if(ninja.x+ninja.w>p.x&&ninja.x<p.x+p.w&&ninja.y+ninja.h>=py&&ninja.y+ninja.h<=py+10){
+        ninja.vy=-10;ninja.y=py-ninja.h;
+      }
+    }
+  }
+  // camera
+  const ny=ninja.y;
+  if(ny<H/3){const diff=H/3-ny;camera-=diff;ninja.y=H/3;
+    platforms.forEach(p=>p.y+=diff);score+=Math.floor(diff)}
+  // move platforms
+  platforms.forEach(p=>{if(p.type==='moving'){p.x+=p.vx;if(p.x<0||p.x+p.w>W)p.vx*=-1}});
+  // remove & spawn
+  platforms=platforms.filter(p=>p.y<H+50);
+  while(platforms.length<12){const topY=Math.min(...platforms.map(p=>p.y));
+    platforms.push({x:Math.random()*(W-70),y:topY-40-Math.random()*20,w:50+Math.random()*30,type:Math.random()<0.2?'moving':'static',vx:Math.random()<0.5?1:-1})}
+  // death
+  if(ninja.y>H+50){die()}
+}
+function die(){
+  running=false;if(score>best){best=score;localStorage.setItem('ninja_best',best)}
+  ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#fff';ctx.font='bold 28px sans-serif';ctx.textAlign='center';ctx.fillText('高度: '+score,W/2,H/2-10);
+  ctx.font='13px sans-serif';ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillText('点击重新开始',W/2,H/2+20);
+  canvas.onclick=()=>{canvas.onclick=null;init()};
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#0f172a');bg.addColorStop(1,'#1e293b');ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  // platforms
+  platforms.forEach(p=>{
+    ctx.fillStyle=p.type==='moving'?'#38bdf8':'#475569';
+    ctx.beginPath();ctx.roundRect(p.x,p.y,p.w,8,4);ctx.fill();
+  });
+  // ninja
+  const nx=ninja.x,ny=ninja.y;
+  ctx.fillStyle='#1e293b';ctx.fillRect(nx+2,ny+2,ninja.w-4,ninja.h);
+  ctx.fillStyle='#e11d48';ctx.fillRect(nx+3,ny,ninja.w-6,8);// headband
+  ctx.fillStyle='#fff';ctx.fillRect(nx+6+(ninja.dir>0?4:0),ny+2,3,3);// eye
+  ctx.fillStyle='#334155';ctx.fillRect(nx+4,ny+10,ninja.w-8,ninja.h-12);// body
+  // scarf trail
+  ctx.strokeStyle='#e11d48';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(nx+(ninja.dir>0?3:ninja.w-3),ny+4);
+  ctx.quadraticCurveTo(nx-ninja.vx*3,ny-5,nx-ninja.vx*6,ny-8);ctx.stroke();
+  // score
+  ctx.fillStyle='#fff';ctx.font='bold 18px sans-serif';ctx.textAlign='right';ctx.fillText(score,W-15,30);
+  ctx.font='11px sans-serif';ctx.fillStyle='rgba(255,255,255,.4)';ctx.fillText('最高:'+best,W-15,48);
+}
+function loop(){update();draw();if(running)requestAnimationFrame(loop)}
+init();
+</script></body></html>

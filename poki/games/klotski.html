@@ -1,0 +1,80 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>华容道 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}.board{display:grid;grid-template-columns:repeat(4,72px);grid-template-rows:repeat(5,72px);gap:3px;background:#450a0a;padding:6px;border-radius:10px;box-shadow:0 0 30px rgba(220,38,38,.15)}.block{border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;user-select:none;transition:all .15s}.block:hover{opacity:.85}.stats{display:flex;gap:20px;font-size:.9rem}.hint{font-size:.75rem;opacity:.4;text-align:center}button.reset{padding:6px 16px;border:none;border-radius:20px;background:#dc2626;color:#fff;font-size:.85rem;cursor:pointer}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🀄 华容道</span></div>
+<div class="container">
+<div class="stats"><span id="moves">步数: 0</span></div>
+<div class="board" id="board"></div>
+<button class="reset" onclick="init()">重置</button>
+<div class="hint">点击棋子移动到空位 · 让曹操(红色大块)从底部中间逃出</div>
+</div>
+<script>
+// Classic Klotski puzzle
+// Pieces: id, name, rows x cols, initial position (row, col), color
+const PIECES_DEF=[
+  {id:1,name:'曹操',h:2,w:2,r:0,c:1,color:'#dc2626'},
+  {id:2,name:'关羽',h:1,w:2,r:2,c:1,color:'#eab308'},
+  {id:3,name:'张飞',h:2,w:1,r:0,c:0,color:'#22c55e'},
+  {id:4,name:'赵云',h:2,w:1,r:0,c:3,color:'#3b82f6'},
+  {id:5,name:'马超',h:2,w:1,r:2,c:0,color:'#8b5cf6'},
+  {id:6,name:'黄忠',h:2,w:1,r:2,c:3,color:'#f97316'},
+  {id:7,name:'兵',h:1,w:1,r:3,c:1,color:'#64748b'},
+  {id:8,name:'兵',h:1,w:1,r:3,c:2,color:'#64748b'},
+  {id:9,name:'兵',h:1,w:1,r:4,c:0,color:'#64748b'},
+  {id:10,name:'兵',h:1,w:1,r:4,c:3,color:'#64748b'},
+];
+const ROWS=5,COLS=4;
+let pieces,grid,moves,won;
+
+function init(){
+  pieces=PIECES_DEF.map(p=>({...p}));
+  moves=0;won=false;buildGrid();render();
+}
+function buildGrid(){
+  grid=Array.from({length:ROWS},()=>Array(COLS).fill(0));
+  pieces.forEach(p=>{for(let r=p.r;r<p.r+p.h;r++)for(let c=p.c;c<p.c+p.w;c++)grid[r][c]=p.id});
+}
+function canMove(p,dr,dc){
+  for(let r=p.r;r<p.r+p.h;r++)for(let c=p.c;c<p.c+p.w;c++){
+    const nr=r+dr,nc=c+dc;
+    if(nr<0||nr>=ROWS||nc<0||nc>=COLS)return false;
+    if(grid[nr][nc]!==0&&grid[nr][nc]!==p.id)return false;
+  }
+  return true;
+}
+function tryMove(p){
+  if(won)return;
+  for(const[dr,dc]of[[-1,0],[1,0],[0,-1],[0,1]]){
+    if(canMove(p,dr,dc)){
+      p.r+=dr;p.c+=dc;moves++;buildGrid();render();
+      if(p.id===1&&p.r===3&&p.c===1){won=true;document.getElementById('moves').textContent='🎉 '+moves+'步通关！';setTimeout(init,3000)}
+      return;
+    }
+  }
+}
+function render(){
+  const board=document.getElementById('board');board.innerHTML='';
+  // empty cells
+  const cells=Array.from({length:ROWS*COLS},()=>null);
+  pieces.forEach(p=>{
+    // only place at top-left cell
+    cells[p.r*COLS+p.c]=p;
+  });
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const idx=r*COLS+c;
+    const p=cells[idx];
+    const div=document.createElement('div');
+    if(p){
+      div.className='block';div.style.background=p.color;
+      div.style.gridRow=`${r+1} / ${r+1+p.h}`;div.style.gridColumn=`${c+1} / ${c+1+p.w}`;
+      div.textContent=p.name;
+      div.addEventListener('click',()=>tryMove(p));
+      board.appendChild(div);
+    } else if(grid[r][c]===0){
+      div.style.gridRow=`${r+1}`;div.style.gridColumn=`${c+1}`;div.style.background='rgba(255,255,255,.03)';div.style.borderRadius='6px';
+      board.appendChild(div);
+    }
+  }
+  if(!won)document.getElementById('moves').textContent='步数: '+moves;
+}
+init();
+</script></body></html>

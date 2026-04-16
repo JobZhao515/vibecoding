@@ -1,0 +1,101 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>水果合成 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}canvas{border-radius:8px;background:#1c1917;box-shadow:0 0 30px rgba(249,115,22,.1);cursor:pointer}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🍊 水果合成</span></div>
+<div class="container">
+<canvas id="game" width="350" height="500"></canvas>
+<div class="hint">点击放下水果 · 相同水果碰撞合成更大水果</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=350,H=500,G=0.2,WALL=10;
+const FRUITS=[
+  {emoji:'🍒',r:12,color:'#ef4444',pts:1},
+  {emoji:'🍓',r:16,color:'#f43f5e',pts:3},
+  {emoji:'🍇',r:20,color:'#8b5cf6',pts:6},
+  {emoji:'🍊',r:25,color:'#f97316',pts:10},
+  {emoji:'🍎',r:30,color:'#dc2626',pts:15},
+  {emoji:'🍋',r:35,color:'#eab308',pts:21},
+  {emoji:'🍑',r:40,color:'#fb923c',pts:28},
+  {emoji:'🥝',r:46,color:'#22c55e',pts:36},
+  {emoji:'🍈',r:52,color:'#84cc16',pts:45},
+  {emoji:'🍉',r:60,color:'#16a34a',pts:55},
+];
+let balls=[],nextType=0,dropX=W/2,score=0,best=+localStorage.getItem('fmerge_best')||0,gameOver=false,dropReady=true;
+
+function spawnNext(){nextType=Math.floor(Math.random()*4);dropReady=true}
+function drop(){
+  if(!dropReady||gameOver)return;
+  const f=FRUITS[nextType];
+  balls.push({x:dropX,y:f.r+30,vx:0,vy:0,r:f.r,type:nextType,merging:false});
+  dropReady=false;
+  setTimeout(spawnNext,400);
+}
+canvas.addEventListener('click',e=>{
+  if(gameOver){score=0;balls=[];gameOver=false;spawnNext();return}
+  const rect=canvas.getBoundingClientRect();dropX=Math.max(WALL+30,Math.min(W-WALL-30,(e.clientX-rect.left)*(W/rect.width)));
+  drop();
+});
+canvas.addEventListener('mousemove',e=>{if(!gameOver){const r=canvas.getBoundingClientRect();dropX=Math.max(WALL+30,Math.min(W-WALL-30,(e.clientX-r.left)*(W/r.width)))}});
+
+function update(){
+  if(gameOver)return;
+  for(const b of balls){
+    b.vy+=G;b.x+=b.vx;b.y+=b.vy;
+    b.vx*=0.98;b.vy*=0.98;
+    // walls
+    if(b.x-b.r<WALL){b.x=WALL+b.r;b.vx*=-0.5}
+    if(b.x+b.r>W-WALL){b.x=W-WALL-b.r;b.vx*=-0.5}
+    if(b.y+b.r>H-WALL){b.y=H-WALL-b.r;b.vy*=-0.3}
+  }
+  // ball-ball collision
+  for(let i=0;i<balls.length;i++){
+    for(let j=i+1;j<balls.length;j++){
+      const a=balls[i],b=balls[j];
+      const dx=b.x-a.x,dy=b.y-a.y,dist=Math.sqrt(dx*dx+dy*dy),minD=a.r+b.r;
+      if(dist<minD&&dist>0){
+        const nx=dx/dist,ny=dy/dist,overlap=(minD-dist)/2;
+        a.x-=nx*overlap;a.y-=ny*overlap;b.x+=nx*overlap;b.y+=ny*overlap;
+        const dvx=a.vx-b.vx,dvy=a.vy-b.vy,dvn=dvx*nx+dvy*ny;
+        if(dvn>0){a.vx-=dvn*nx*0.5;a.vy-=dvn*ny*0.5;b.vx+=dvn*nx*0.5;b.vy+=dvn*ny*0.5}
+        // merge
+        if(a.type===b.type&&a.type<FRUITS.length-1&&!a.merging&&!b.merging){
+          a.merging=b.merging=true;
+          const nt=a.type+1,nf=FRUITS[nt];
+          const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+          balls.splice(j,1);balls.splice(i,1);
+          balls.push({x:mx,y:my,vx:0,vy:-2,r:nf.r,type:nt,merging:false});
+          score+=nf.pts;if(score>best){best=score;localStorage.setItem('fmerge_best',best)}
+          return;
+        }
+      }
+    }
+  }
+  // game over check - any ball above line
+  for(const b of balls){if(b.y-b.r<40&&Math.abs(b.vy)<0.5){gameOver=true;break}}
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#1c1917';ctx.fillRect(0,0,W,H);
+  // walls
+  ctx.fillStyle='#44403c';ctx.fillRect(0,0,WALL,H);ctx.fillRect(W-WALL,0,WALL,H);ctx.fillRect(0,H-WALL,W,WALL);
+  // danger line
+  ctx.strokeStyle='rgba(239,68,68,.3)';ctx.setLineDash([5,5]);ctx.beginPath();ctx.moveTo(WALL,40);ctx.lineTo(W-WALL,40);ctx.stroke();ctx.setLineDash([]);
+  // next preview
+  if(dropReady&&!gameOver){
+    const nf=FRUITS[nextType];ctx.globalAlpha=0.4;ctx.font=`${nf.r*1.5}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(nf.emoji,dropX,nf.r+20);ctx.globalAlpha=1;
+    ctx.strokeStyle='rgba(255,255,255,.1)';ctx.beginPath();ctx.moveTo(dropX,40);ctx.lineTo(dropX,H-WALL);ctx.stroke();
+  }
+  // balls
+  balls.forEach(b=>{
+    const f=FRUITS[b.type];
+    ctx.fillStyle=f.color;ctx.globalAlpha=0.3;ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+    ctx.font=`${b.r*1.2}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(f.emoji,b.x,b.y);
+  });
+  // score
+  ctx.fillStyle='#fff';ctx.font='bold 16px sans-serif';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText('分数: '+score,WALL+8,8);
+  ctx.textAlign='right';ctx.fillText('最高: '+best,W-WALL-8,8);
+  if(gameOver){ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.font='bold 26px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('游戏结束！'+score+'分',W/2,H/2-10);ctx.font='13px sans-serif';ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillText('点击重新开始',W/2,H/2+20)}
+}
+function loop(){update();draw();requestAnimationFrame(loop)}
+spawnNext();loop();
+</script></body></html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>双人坦克 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}canvas{border-radius:8px;background:#1a2e1a;box-shadow:0 0 30px rgba(132,204,22,.1)}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🔫 双人坦克</span></div>
+<div class="container">
+<canvas id="game" width="600" height="400"></canvas>
+<div class="hint">P1: WASD移动 + 空格射击 · P2: 方向键移动 + Enter射击</div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const W=600,H=400;
+const keys={};
+let p1,p2,bullets,walls,gameOver,winner;
+
+function init(){
+  p1={x:60,y:H/2,angle:0,color:'#22c55e',score:0,cooldown:0};
+  p2={x:W-60,y:H/2,angle:Math.PI,color:'#3b82f6',score:0,cooldown:0};
+  bullets=[];gameOver=false;winner=null;
+  walls=[{x:W/2-5,y:50,w:10,h:120},{x:W/2-5,y:H-170,w:10,h:120},{x:150,y:H/2-5,w:100,h:10},{x:W-250,y:H/2-5,w:100,h:10}];
+}
+document.addEventListener('keydown',e=>{keys[e.key]=true;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Enter'].includes(e.key))e.preventDefault()});
+document.addEventListener('keyup',e=>{keys[e.key]=false});
+
+function shoot(p){
+  if(p.cooldown>0)return;
+  bullets.push({x:p.x+Math.cos(p.angle)*18,y:p.y+Math.sin(p.angle)*18,vx:Math.cos(p.angle)*5,vy:Math.sin(p.angle)*5,owner:p,life:120});
+  p.cooldown=20;
+}
+function moveTank(t,fwd,back,left,right,fire){
+  const spd=2.5,rot=0.05;
+  if(keys[left])t.angle-=rot;if(keys[right])t.angle+=rot;
+  let nx=t.x,ny=t.y;
+  if(keys[fwd]){nx+=Math.cos(t.angle)*spd;ny+=Math.sin(t.angle)*spd}
+  if(keys[back]){nx-=Math.cos(t.angle)*spd;ny-=Math.sin(t.angle)*spd}
+  // wall collision
+  let blocked=false;
+  for(const w of walls){if(nx-12<w.x+w.w&&nx+12>w.x&&ny-12<w.y+w.h&&ny+12>w.y)blocked=true}
+  if(!blocked&&nx>15&&nx<W-15&&ny>15&&ny<H-15){t.x=nx;t.y=ny}
+  if(keys[fire])shoot(t);
+  if(t.cooldown>0)t.cooldown--;
+}
+function update(){
+  if(gameOver)return;
+  moveTank(p1,'w','s','a','d',' ');
+  moveTank(p2,'ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter');
+  for(let i=bullets.length-1;i>=0;i--){
+    const b=bullets[i];b.x+=b.vx;b.y+=b.vy;b.life--;
+    if(b.x<0||b.x>W||b.y<0||b.y>H||b.life<=0){bullets.splice(i,1);continue}
+    // wall bounce
+    for(const w of walls){if(b.x>w.x&&b.x<w.x+w.w&&b.y>w.y&&b.y<w.y+w.h){
+      if(Math.abs(b.x-w.x)<3||Math.abs(b.x-w.x-w.w)<3)b.vx*=-1;else b.vy*=-1;break}}
+    // hit tanks
+    const targets=[p1,p2].filter(t=>t!==b.owner);
+    for(const t of targets){if(Math.sqrt((b.x-t.x)**2+(b.y-t.y)**2)<15){
+      b.owner.score++;bullets.splice(i,1);
+      t.x=t===p1?60:W-60;t.y=H/2;
+      if(b.owner.score>=5){gameOver=true;winner=b.owner===p1?'P1 🟢':'P2 🔵'}
+      break;
+    }}
+  }
+}
+function drawTank(t){
+  ctx.save();ctx.translate(t.x,t.y);ctx.rotate(t.angle);
+  ctx.fillStyle=t.color;ctx.fillRect(-12,-10,24,20);
+  ctx.fillStyle=t.color;ctx.fillRect(8,-3,14,6);
+  ctx.fillStyle='rgba(255,255,255,.2)';ctx.fillRect(-12,-10,24,4);
+  ctx.restore();
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  walls.forEach(w=>{ctx.fillStyle='#4b5563';ctx.fillRect(w.x,w.y,w.w,w.h)});
+  drawTank(p1);drawTank(p2);
+  bullets.forEach(b=>{ctx.fillStyle=b.owner.color;ctx.beginPath();ctx.arc(b.x,b.y,3,0,Math.PI*2);ctx.fill()});
+  ctx.fillStyle='rgba(255,255,255,.6)';ctx.font='14px sans-serif';ctx.textAlign='left';ctx.fillText(`P1: ${p1.score}`,15,25);
+  ctx.textAlign='right';ctx.fillText(`P2: ${p2.score}`,W-15,25);
+  if(gameOver){ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.font='bold 28px sans-serif';ctx.textAlign='center';ctx.fillText(winner+' 获胜！',W/2,H/2-10);ctx.font='14px sans-serif';ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillText('点击重新开始',W/2,H/2+25);canvas.onclick=()=>{canvas.onclick=null;init()}}
+}
+function loop(){update();draw();requestAnimationFrame(loop)}
+init();loop();
+</script></body></html>

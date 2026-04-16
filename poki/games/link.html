@@ -1,0 +1,78 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>连连看 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}.board{display:grid;gap:3px;background:#0f172a;padding:8px;border-radius:10px;box-shadow:0 0 30px rgba(34,197,94,.1)}.cell{width:48px;height:48px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;cursor:pointer;transition:all .15s;border:2px solid transparent;user-select:none}.cell:hover{border-color:rgba(34,197,94,.4)}.cell.selected{border-color:#22c55e;background:#064e3b!important}.cell.empty{visibility:hidden;pointer-events:none}.stats{display:flex;gap:20px;font-size:.9rem;opacity:.7}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">🔗 连连看</span></div>
+<div class="container">
+<div class="stats"><span id="pairs">剩余: 0</span><span id="timer">时间: 0s</span></div>
+<div class="board" id="board"></div>
+<div class="hint">点击两个相同图标消除 · 连线最多拐两次弯</div>
+</div>
+<script>
+const ICONS=['🍎','🍊','🍋','🍇','🍓','🍒','🥝','🍑','🌽','🥕','🍄','🌶️'];
+const ROWS=6,COLS=8;
+let grid,selected,remaining,startTime,timerInterval;
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function init(){
+  const totalPairs=(ROWS*COLS)/2;
+  const icons=[];for(let i=0;i<totalPairs;i++)icons.push(ICONS[i%ICONS.length],ICONS[i%ICONS.length]);
+  shuffle(icons);
+  grid=[];for(let r=0;r<ROWS;r++){grid[r]=[];for(let c=0;c<COLS;c++)grid[r][c]=icons[r*COLS+c]}
+  selected=null;remaining=ROWS*COLS;startTime=Date.now();
+  clearInterval(timerInterval);timerInterval=setInterval(()=>{document.getElementById('timer').textContent='时间: '+Math.floor((Date.now()-startTime)/1000)+'s'},1000);
+  render();
+}
+function canConnect(r1,c1,r2,c2){
+  // BFS with max 2 turns
+  if(r1===r2&&c1===c2)return false;
+  if(grid[r1][c1]!==grid[r2][c2])return false;
+  const dirs=[[0,1],[0,-1],[1,0],[-1,0]];
+  const queue=[{r:r1,c:c1,dir:-1,turns:0}];
+  const visited=new Map();
+  const key=(r,c,d)=>`${r},${c},${d}`;
+  while(queue.length){
+    const{r,c,dir,turns}=queue.shift();
+    for(let d=0;d<4;d++){
+      const nr=r+dirs[d][0],nc=c+dirs[d][1];
+      const nt=dir===-1?0:(d!==dir?turns+1:turns);
+      if(nt>2)continue;
+      if(nr<-1||nr>ROWS||nc<-1||nc>COLS)continue;
+      if(nr===r2&&nc===c2)return true;
+      if(nr<0||nr>=ROWS||nc<0||nc>=COLS)continue;
+      if(grid[nr][nc]!==null)continue;
+      const k=key(nr,nc,d);
+      if(visited.has(k)&&visited.get(k)<=nt)continue;
+      visited.set(k,nt);
+      queue.push({r:nr,c:nc,dir:d,turns:nt});
+    }
+  }
+  return false;
+}
+function handleClick(r,c){
+  if(grid[r][c]===null)return;
+  if(!selected){selected={r,c};render();return}
+  if(selected.r===r&&selected.c===c){selected=null;render();return}
+  if(canConnect(selected.r,selected.c,r,c)){
+    grid[selected.r][selected.c]=null;grid[r][c]=null;remaining-=2;
+    selected=null;render();
+    document.getElementById('pairs').textContent='剩余: '+remaining;
+    if(remaining===0){clearInterval(timerInterval);
+      setTimeout(()=>{alert('🎉 完成！用时 '+Math.floor((Date.now()-startTime)/1000)+'秒');init()},300)}
+  } else {
+    selected={r,c};render();
+  }
+}
+function render(){
+  const board=document.getElementById('board');board.innerHTML='';
+  board.style.gridTemplateColumns=`repeat(${COLS},48px)`;
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const cell=document.createElement('div');
+    cell.className='cell'+(grid[r][c]===null?' empty':'')+(selected&&selected.r===r&&selected.c===c?' selected':'');
+    cell.style.background=grid[r][c]!==null?'#1e293b':'transparent';
+    cell.textContent=grid[r][c]||'';
+    cell.addEventListener('click',()=>handleClick(r,c));
+    board.appendChild(cell);
+  }
+  document.getElementById('pairs').textContent='剩余: '+remaining;
+}
+init();
+</script></body></html>

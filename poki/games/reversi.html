@@ -1,0 +1,77 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>黑白棋 - PlayHub</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#1a1b2e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}.top-bar{width:100%;padding:12px 24px;display:flex;align-items:center;gap:16px;background:#12132a;border-bottom:1px solid rgba(255,255,255,.06)}.back-btn{padding:6px 16px;border-radius:20px;background:rgba(124,92,252,.2);color:#a78bfa;font-size:.85rem;text-decoration:none}.game-title{font-size:1.1rem;font-weight:700}.container{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}.board{display:grid;grid-template-columns:repeat(8,48px);gap:2px;background:#14532d;padding:4px;border-radius:8px;box-shadow:0 0 30px rgba(34,197,94,.15)}.cell{width:48px;height:48px;background:#166534;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s}.cell:hover{background:#15803d}.cell.valid{background:#1a7a3a}.piece{width:36px;height:36px;border-radius:50%;transition:all .3s}.piece.black{background:radial-gradient(circle at 35% 35%,#555,#111)}.piece.white{background:radial-gradient(circle at 35% 35%,#fff,#ccc)}.stats{display:flex;gap:24px;font-size:.95rem}.status{font-size:.9rem;opacity:.7;min-height:20px}.hint{font-size:.75rem;opacity:.4}</style></head><body>
+<div class="top-bar"><a class="back-btn" href="../index.html">← 返回</a><span class="game-title">⚫ 黑白棋</span></div>
+<div class="container">
+<div class="stats"><span id="black">⚫ 2</span><span id="white">⚪ 2</span></div>
+<div id="status" class="status">黑棋先行</div>
+<div class="board" id="board"></div>
+<div class="hint">点击绿色高亮位置落子 · 翻转对手棋子</div>
+</div>
+<script>
+const DIRS=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+let grid,turn,gameOver;
+
+function init(){
+  grid=Array.from({length:8},()=>Array(8).fill(0));
+  grid[3][3]=grid[4][4]=2;grid[3][4]=grid[4][3]=1;// 1=black,2=white
+  turn=1;gameOver=false;render();
+}
+function getFlips(r,c,player){
+  if(grid[r][c]!==0)return[];
+  const opp=3-player;let allFlips=[];
+  for(const[dr,dc]of DIRS){
+    let nr=r+dr,nc=c+dc,flips=[];
+    while(nr>=0&&nr<8&&nc>=0&&nc<8&&grid[nr][nc]===opp){flips.push([nr,nc]);nr+=dr;nc+=dc}
+    if(flips.length>0&&nr>=0&&nr<8&&nc>=0&&nc<8&&grid[nr][nc]===player)allFlips.push(...flips);
+  }
+  return allFlips;
+}
+function getValidMoves(player){
+  const moves=[];
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){if(getFlips(r,c,player).length>0)moves.push([r,c])}
+  return moves;
+}
+function place(r,c){
+  if(gameOver)return;
+  const flips=getFlips(r,c,turn);
+  if(flips.length===0)return;
+  grid[r][c]=turn;flips.forEach(([fr,fc])=>grid[fr][fc]=turn);
+  turn=3-turn;
+  if(getValidMoves(turn).length===0){
+    turn=3-turn;
+    if(getValidMoves(turn).length===0)gameOver=true;
+  }
+  render();
+  // AI move (white)
+  if(turn===2&&!gameOver)setTimeout(aiMove,300);
+}
+function aiMove(){
+  const moves=getValidMoves(2);if(moves.length===0)return;
+  // prefer corners, edges, then max flips
+  const corners=moves.filter(([r,c])=>(r===0||r===7)&&(c===0||c===7));
+  if(corners.length)return place(corners[0][0],corners[0][1]);
+  const edges=moves.filter(([r,c])=>r===0||r===7||c===0||c===7);
+  if(edges.length)return place(edges[0][0],edges[0][1]);
+  let best=moves[0],bestScore=0;
+  for(const[r,c]of moves){const s=getFlips(r,c,2).length;if(s>bestScore){bestScore=s;best=[r,c]}}
+  place(best[0],best[1]);
+}
+function render(){
+  const board=document.getElementById('board');board.innerHTML='';
+  const valid=gameOver?[]:getValidMoves(turn);
+  const validSet=new Set(valid.map(([r,c])=>r*8+c));
+  let b=0,w=0;
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+    if(grid[r][c]===1)b++;if(grid[r][c]===2)w++;
+    const cell=document.createElement('div');cell.className='cell'+(validSet.has(r*8+c)?' valid':'');
+    if(grid[r][c]){const p=document.createElement('div');p.className='piece '+(grid[r][c]===1?'black':'white');cell.appendChild(p)}
+    cell.addEventListener('click',()=>{if(turn===1)place(r,c)});
+    board.appendChild(cell);
+  }
+  document.getElementById('black').textContent='⚫ '+b;
+  document.getElementById('white').textContent='⚪ '+w;
+  if(gameOver){document.getElementById('status').textContent=b>w?'黑棋胜！':w>b?'白棋胜！':'平局！';setTimeout(init,3000)}
+  else document.getElementById('status').textContent=(turn===1?'黑':'白')+'棋落子';
+}
+init();
+</script></body></html>

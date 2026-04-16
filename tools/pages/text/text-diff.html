@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文本对比 - ToolsHub</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+</head>
+<body>
+  <div class="tool-page">
+    <div class="tool-topbar">
+      <a href="../../index.html" class="back-btn">← 返回</a>
+      <div class="tool-name">📋 文本对比</div>
+    </div>
+    <div style="flex:1; padding: 24px; max-width: 1000px; margin: 0 auto; width: 100%;">
+      <div class="tool-section">
+        <h3 class="section-title">原文本</h3>
+        <textarea id="text1" class="tool-textarea" placeholder="粘贴或输入原文本..."></textarea>
+      </div>
+      <div class="tool-section">
+        <h3 class="section-title">新文本</h3>
+        <textarea id="text2" class="tool-textarea" placeholder="粘贴或输入新文本..."></textarea>
+      </div>
+      <div class="tool-section">
+        <div class="tool-actions">
+          <button class="tool-btn tool-btn-primary" onclick="compare()">🔍 对比</button>
+          <button class="tool-btn tool-btn-secondary" onclick="reset()">🔄 重置</button>
+          <button class="tool-btn tool-btn-secondary" onclick="copyResult()">📋 复制结果</button>
+        </div>
+      </div>
+      <div class="tool-section" id="resultSection" style="display:none;">
+        <h3 class="section-title">对比结果</h3>
+        <div id="result" class="tool-result"></div>
+      </div>
+    </div>
+  </div>
+  <div class="tool-toast"></div>
+  <script>
+    function showToast(msg) {
+      const toast = document.querySelector('.tool-toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    function levenshtein(s1, s2) {
+      const m = s1.length, n = s2.length;
+      const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+      for (let i = 0; i <= m; i++) dp[i][0] = i;
+      for (let j = 0; j <= n; j++) dp[0][j] = j;
+      for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+          if (s1[i - 1] === s2[j - 1]) {
+            dp[i][j] = dp[i - 1][j - 1];
+          } else {
+            dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+          }
+        }
+      }
+      return dp[m][n];
+    }
+
+    function compare() {
+      const text1 = document.getElementById('text1').value;
+      const text2 = document.getElementById('text2').value;
+      if (!text1 || !text2) { showToast('请输入两段文本'); return; }
+
+      const lines1 = text1.split('\n');
+      const lines2 = text2.split('\n');
+      const maxLines = Math.max(lines1.length, lines2.length);
+      let html = '<table style="width:100%; border-collapse: collapse; font-size:13px;">';
+      html += '<tr style="background:#f5f7fa;"><th style="padding:8px; text-align:left; border-bottom:1px solid #e5e7eb; width:50%;">原文本</th><th style="padding:8px; text-align:left; border-bottom:1px solid #e5e7eb; width:50%;">新文本</th></tr>';
+
+      for (let i = 0; i < maxLines; i++) {
+        const line1 = lines1[i] || '';
+        const line2 = lines2[i] || '';
+        let style1 = 'padding:8px; border-bottom:1px solid #e5e7eb;';
+        let style2 = 'padding:8px; border-bottom:1px solid #e5e7eb;';
+
+        if (line1 === line2) {
+          // 相同
+        } else if (!line1) {
+          style2 += 'background:#d1fae5; color:#059669;'; // 新增
+        } else if (!line2) {
+          style1 += 'background:#fee2e2; color:#dc2626;'; // 删除
+        } else if (levenshtein(line1, line2) / Math.max(line1.length, line2.length) > 0.7) {
+          style1 += 'background:#fee2e2;'; // 删除
+          style2 += 'background:#fef3c7;'; // 修改
+        } else {
+          style1 += 'background:#fee2e2;';
+          style2 += 'background:#fef3c7;';
+        }
+
+        html += `<tr><td style="${style1}">${line1}</td><td style="${style2}">${line2}</td></tr>`;
+      }
+      html += '</table>';
+
+      document.getElementById('result').innerHTML = html;
+      document.getElementById('resultSection').style.display = 'block';
+      showToast('对比完成');
+    }
+
+    function reset() {
+      document.getElementById('text1').value = '';
+      document.getElementById('text2').value = '';
+      document.getElementById('resultSection').style.display = 'none';
+    }
+
+    function copyResult() {
+      const result = document.getElementById('result').innerText;
+      if (!result) { showToast('还没有对比结果'); return; }
+      navigator.clipboard.writeText(result).then(() => showToast('已复制')).catch(() => showToast('复制失败'));
+    }
+  </script>
+</body>
+</html>

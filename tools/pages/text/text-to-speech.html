@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文本转语音 - ToolsHub</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+</head>
+<body>
+  <div class="tool-page">
+    <div class="tool-topbar">
+      <a href="../../index.html" class="back-btn">← 返回</a>
+      <div class="tool-name">🔊 文本转语音</div>
+    </div>
+    <div style="flex:1; padding: 24px; max-width: 800px; margin: 0 auto; width: 100%;">
+      <div class="tool-section">
+        <h3 class="section-title">输入文本</h3>
+        <textarea id="text" class="tool-textarea" placeholder="输入要转语音的文本..."></textarea>
+      </div>
+      <div class="tool-section">
+        <h3 class="section-title">语音设置</h3>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+          <div>
+            <label style="display:block; font-size:13px; color:#6b7280; margin-bottom:6px;">语言</label>
+            <select id="lang" class="tool-select"><option value="zh-CN">中文(简体)</option><option value="zh-TW">中文(繁体)</option><option value="en-US">English</option></select>
+          </div>
+          <div>
+            <label style="display:block; font-size:13px; color:#6b7280; margin-bottom:6px;">语速</label>
+            <input id="rate" type="range" min="0.5" max="2" step="0.1" value="1" style="width:100%;">
+          </div>
+        </div>
+      </div>
+      <div class="tool-section">
+        <div class="tool-actions">
+          <button class="tool-btn tool-btn-primary" onclick="speak()">▶ 播放</button>
+          <button class="tool-btn tool-btn-secondary" onclick="stop()">⏹ 停止</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="tool-toast"></div>
+  <script>
+    function showToast(msg) {
+      const toast = document.querySelector('.tool-toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    function speak() {
+      const text = document.getElementById('text').value;
+      if (!text) { showToast('请输入文本'); return; }
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = document.getElementById('lang').value;
+      utterance.rate = parseFloat(document.getElementById('rate').value);
+      speechSynthesis.speak(utterance);
+      showToast('播放中...');
+    }
+
+    function stop() {
+      speechSynthesis.cancel();
+      showToast('已停止');
+    }
+  </script>
+</body>
+</html>

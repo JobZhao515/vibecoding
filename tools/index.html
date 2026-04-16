@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ToolsHub - 在线工具合集</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
+</head>
+<body>
+  <div class="app">
+    <!-- 顶部栏 -->
+    <header class="header">
+      <button class="menu-btn" aria-label="菜单">☰</button>
+      <a href="index.html" class="logo">🔧 <span>ToolsHub</span></a>
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="search-input" placeholder="搜索工具...">
+      </div>
+      <div class="header-right">
+        <span class="tool-count"></span>
+      </div>
+    </header>
+    <!-- 左侧分类导航 -->
+    <aside class="sidebar">
+      <div class="sidebar-title">工具分类</div>
+      <ul class="cat-list"></ul>
+    </aside>
+    <!-- 中间工具卡片区 -->
+    <main class="main">
+      <div class="section-title"></div>
+      <div class="tool-grid"></div>
+    </main>
+  </div>
+  <div class="sidebar-overlay"></div>
+  <script src="js/main.js"></script>
+</body>
+</html>

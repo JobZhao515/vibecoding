@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>小宇宙下载 - ToolsHub</title>
+  <link rel="stylesheet" href="../../styles/main.css">
+  <style>
+    .method-select { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .method-btn { padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; background: #fff; cursor: pointer; font-size: 14px; transition: all 0.3s; }
+    .method-btn.active { border-color: #4f8cff; background: #ebf1ff; color: #4f8cff; font-weight: 600; }
+    .method-section { display: none; }
+    .method-section.active { display: block; }
+    .info-box { background: #f0f9ff; border-left: 4px solid #4f8cff; padding: 12px; border-radius: 8px; font-size: 13px; line-height: 1.6; color: #6b7280; margin-bottom: 16px; }
+    .audio-info { background: #f5f5f5; padding: 12px; border-radius: 8px; margin-top: 12px; font-size: 13px; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <div class="tool-page">
+    <div class="tool-topbar">
+      <a href="../../index.html" class="back-btn">← 返回</a>
+      <div class="tool-name">🎙️ 小宇宙下载</div>
+    </div>
+    <div style="flex:1; padding: 24px; max-width: 800px; margin: 0 auto; width: 100%;">
+      
+      <div class="tool-section">
+        <h3 class="section-title">粘贴小宇宙链接</h3>
+        <textarea id="url" class="tool-textarea" placeholder="粘贴完整链接，如：https://www.xiaoyuzhoufm.com/episode/695e7d78c1e012a7abe877a7?s=..."></textarea>
+      </div>
+
+      <div class="tool-section">
+        <h3 class="section-title">功能选择</h3>
+        <div class="method-select">
+          <button class="method-btn active" data-method="download">⬇️ 下载音频</button>
+          <button class="method-btn" data-method="transcribe">📝 转换文本</button>
+        </div>
+      </div>
+
+      <!-- 下载模式 -->
+      <div class="method-section active" id="download-section">
+        <div class="tool-section">
+          <div class="info-box">
+            <strong>💡 提示：</strong>输入小宇宙链接后，点击"提取音频"获得直接下载链接。
+          </div>
+          <div class="tool-actions">
+            <button class="tool-btn tool-btn-primary" onclick="extractAudio()">📥 提取音频</button>
+            <button class="tool-btn tool-btn-secondary" onclick="resetForm()">重置</button>
+          </div>
+          <div id="audio-result" style="display:none; margin-top: 16px;">
+            <h3 class="section-title">音频信息</h3>
+            <div class="audio-info">
+              <div><strong>标题：</strong><span id="episode-title">-</span></div>
+              <div style="margin-top: 8px;"><strong>下载链接：</strong></div>
+              <div style="background: #fff; padding: 8px; border-radius: 4px; margin-top: 4px; word-break: break-all; font-family: monospace; font-size: 12px;" id="audio-url">-</div>
+              <div style="margin-top: 12px; display: flex; gap: 8px;">
+                <button class="tool-btn tool-btn-primary" onclick="downloadAudio()" style="flex: 1;">⬇️ 点击下载</button>
+                <button class="tool-btn tool-btn-secondary" onclick="copyLink()" style="flex: 1;">📋 复制链接</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 转文本模式 -->
+      <div class="method-section" id="transcribe-section">
+        <div class="tool-section">
+          <div class="info-box">
+            <strong>ℹ️ 注意：</strong>纯前端实时转文本需要大型模型，推荐以下方案：
+            <ul style="margin: 8px 0; padding-left: 16px;">
+              <li>方案1：下载音频后用专业工具（如 CapCut、Adobe）转文本</li>
+              <li>方案2：使用在线语音识别服务（Google Speech-to-Text、讯飞等）</li>
+              <li>方案3：使用 Web Speech API（仅支持实时语音输入）</li>
+            </ul>
+          </div>
+          <button class="tool-btn tool-btn-secondary" onclick="openWebSpeech()" style="width: 100%;">🎙️ 打开 Web Speech API</button>
+          <p style="font-size: 12px; color: #9ca3af; margin-top: 12px; text-align: center;">Web Speech API 适合实时语音转文本，不适合已录制音频</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <div class="tool-toast"></div>
+
+  <script>
+    function showToast(msg) {
+      const toast = document.querySelector('.tool-toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    // 方法切换
+    document.querySelectorAll('.method-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.method-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.method-section').forEach(s => s.classList.remove('active'));
+        e.target.classList.add('active');
+        const method = e.target.dataset.method;
+        document.getElementById(method + '-section').classList.add('active');
+      });
+    });
+
+    async function extractAudio() {
+      const url = document.getElementById('url').value.trim();
+      if (!url) {
+        showToast('请输入小宇宙链接');
+        return;
+      }
+
+      // 从 URL 中提取 episode ID
+      const episodeMatch = url.match(/episode\/([a-f0-9]+)/i);
+      if (!episodeMatch) {
+        showToast('链接格式不正确，请检查是否为小宇宙链接');
+        return;
+      }
+
+      showToast('正在提取信息...');
+      try {
+        // 由于 CORS 限制，直接在浏览器中无法获取小宇宙页面
+        // 这里提供三种方案：
+        
+        // 方案1：调用后端 API（如果有）
+        // const response = await fetch('YOUR_BACKEND_API', {
+        //   method: 'POST',
+        //   headers: { 'Content-Type': 'application/json' },
+        //   body: JSON.stringify({ url })
+        // });
+
+        // 方案2：使用在线 CORS 代理（AllOrigins）
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+        const response = await fetch(proxyUrl);
+        const html = await response.text();
+
+        // 从 HTML 中提取音频 URL 和标题
+        const audioMatch = html.match(/https:\/\/media\.xyzcdn\.net\/[^"']+\.m4a/);
+        const titleMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/) || html.match(/"title"\s*:\s*"([^"]+)"/);
+        
+        if (!audioMatch) {
+          showToast('未找到音频链接，请检查链接是否正确');
+          return;
+        }
+
+        const audioUrl = audioMatch[0];
+        const title = titleMatch ? titleMatch[1].slice(0, 50) : 'xiaoyuzhou-audio.m4a';
+
+        document.getElementById('episode-title').textContent = title;
+        document.getElementById('audio-url').textContent = audioUrl;
+        document.getElementById('audio-result').style.display = 'block';
+        showToast('音频提取成功！');
+      } catch (error) {
+        console.error('Error:', error);
+        showToast('提取失败：CORS 限制或网络错误。请尝试以下方案：\n1. 使用后端代理\n2. 手动复制浏览器开发者工具中的音频 URL');
+        
+        // 提供备用方案提示
+        const backupMsg = `
+备用方案：
+1. 打开小宇宙链接
+2. 右键检查（F12 开发者工具）
+3. Network 标签搜索 ".m4a"
+4. 复制链接并在这里粘贴下载
+        `;
+        document.getElementById('audio-result').innerHTML = `
+          <h3 class="section-title">⚠️ 自动提取失败</h3>
+          <div class="audio-info" style="white-space: pre-wrap;">${backupMsg}</div>
+        `;
+        document.getElementById('audio-result').style.display = 'block';
+      }
+    }
+
+    function downloadAudio() {
+      const audioUrl = document.getElementById('audio-url').textContent;
+      const title = document.getElementById('episode-title').textContent;
+      
+      if (audioUrl === '-' || audioUrl.includes('https://') === false) {
+        showToast('未找到可下载的音频链接');
+        return;
+      }
+
+      // 尝试直接下载
+      const link = document.createElement('a');
+      link.href = audioUrl;
+      link.download = title + '.m4a';
+      link.click();
+      showToast('已开始下载');
+    }
+
+    function copyLink() {
+      const audioUrl = document.getElementById('audio-url').textContent;
+      if (audioUrl === '-') {
+        showToast('无链接可复制');
+        return;
+      }
+      navigator.clipboard.writeText(audioUrl).then(() => {
+        showToast('链接已复制');
+      }).catch(() => {
+        showToast('复制失败');
+      });
+    }
+
+    function resetForm() {
+      document.getElementById('url').value = '';
+      document.getElementById('audio-result').style.display = 'none';
+    }
+
+    function openWebSpeech() {
+      // 打开 Web Speech API 工具（可链接到 text-to-speech 或创建新页面）
+      const link = '../../pages/text/text-to-speech.html';
+      showToast('打开 Web Speech API...');
+      setTimeout(() => {
+        // 可选：打开新窗口或导航
+        // window.open(link, '_blank');
+        showToast('提示：请使用支持 Web Speech API 的工具，或在本页面实现录音转文本');
+      }, 500);
+    }
+  </script>
+</body>
+</html>

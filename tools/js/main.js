@@ -5,6 +5,7 @@ const CATEGORIES = [
   { id: 'image', emoji: '🖼️', name: '图片工具' },
   { id: 'pdf', emoji: '📄', name: 'PDF工具' },
   { id: 'office', emoji: '📊', name: '办公辅助' },
+  { id: 'audio', emoji: '🎵', name: '音频工具' },
   { id: 'calc', emoji: '🔢', name: '计算工具' },
   { id: 'security', emoji: '🔒', name: '安全工具' },
   { id: 'network', emoji: '🌐', name: '网络工具' },
@@ -55,6 +56,9 @@ const TOOLS = [
   { id: 'mindmap', cat: 'office', name: '便捷思维导图', emoji: '🗺️', desc: '快速创建、编辑、导出思维导图', url: '', badge: 'coming' },
   { id: 'font-sheet', cat: 'office', name: '字帖生成', emoji: '✍️', desc: '生成个性化练字字帖，支持下载打印', url: '', badge: 'coming' },
   { id: 'excel-convert', cat: 'office', name: 'Excel格式转换', emoji: '📈', desc: 'Excel与其他格式互转', url: '', badge: 'coming' },
+
+  // ===== 音频工具 =====
+  { id: 'xiaoyuzhou-download', cat: 'audio', name: '小宇宙下载', emoji: '🎙️', desc: '粘贴小宇宙链接，下载音频文件并支持转文本', url: 'pages/audio/xiaoyuzhou-download.html', badge: 'new' },
 
   // ===== 计算工具 =====
   { id: 'calculator', cat: 'calc', name: '计算器', emoji: '🧮', desc: '支持加减乘除、开方、指数、三角函数', url: 'pages/calc/calculator.html', badge: '' },
@@ -276,6 +280,7 @@ function getCardColor(toolId) {
     'plate-query': '#E5FFE5, #B3FFB3',
     'zipcode': '#F5E5FF, #D9B3FF',
     'date-calc': '#FFE5F5, #FFB3D9',
+    'xiaoyuzhou-download': '#E5F0FF, #B3D9FF',
   };
   return colors[toolId] || '#E5F5FF, #B3E5FF';
 }

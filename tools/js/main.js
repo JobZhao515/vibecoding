@@ -97,8 +97,8 @@ const TOOLS = [
   { id: 'hello-world', cat: 'dev', name: 'Hello World生成', emoji: '👋', desc: '生成多种编程语言Hello World示例代码', url: '', badge: 'coming' },
 
   // ===== 创意工具 =====
-  { id: 'gif-split', cat: 'creative', name: 'GIF分解', emoji: '📹', desc: '将GIF动画分解为单帧图片', url: 'pages/creative/gif-split.html', badge: '' },
-  { id: 'gif-create', cat: 'creative', name: 'GIF合成', emoji: '📸', desc: '多张图片合成高质量GIF动画', url: 'pages/creative/gif-create.html', badge: '' },
+  { id: 'gif-split', cat: 'image', name: 'GIF分解', emoji: '📹', desc: '将GIF动画分解为单帧图片', url: 'pages/image/gif-split.html', badge: '' },
+  { id: 'gif-create', cat: 'image', name: 'GIF合成', emoji: '📸', desc: '多张图片合成高质量GIF动画', url: 'pages/image/gif-create.html', badge: '' },
   { id: 'led-barrage', cat: 'creative', name: '手持弹幕LED', emoji: '💡', desc: '生成手持LED屏弹幕文字动画', url: 'pages/creative/led-barrage.html', badge: '' },
   { id: 'video-to-gif', cat: 'creative', name: '视频转GIF', emoji: '🎬', desc: '提取视频片段转换为GIF', url: '', badge: 'coming' },
   { id: 'emoji-pack', cat: 'creative', name: '表情包制作', emoji: '😂', desc: '上传图片添加文字制作表情包', url: '', badge: 'coming' },

@@ -1,4 +1,102 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>二维码生成 - ToolsHub</title><link rel="stylesheet" href="../../styles/main.css"><style>#qrcode{display:inline-block;padding:12px;background:white;border:1px solid #e5e7eb;border-radius:8px;margin:12px auto;}</style></head>
-<body><div class="tool-page"><div class="tool-topbar"><a href="../../index.html" class="back-btn">← 返回</a><div class="tool-name">📲 二维码生成</div></div><div style="flex:1; padding: 24px; max-width: 600px; margin: 0 auto; width: 100%;"><div class="tool-section"><h3 class="section-title">输入内容</h3><input id="text" type="text" class="tool-input" placeholder="输入URL或文本..." style="width:100%; margin-bottom:12px;" value="https://toolshub.example.com"><button class="tool-btn tool-btn-primary" onclick="generate()" style="width:100%;">生成二维码</button></div><div class="tool-section" id="resultSection" style="display:none;"><h3 class="section-title">二维码</h3><div style="text-align:center;"><canvas id="qrcode" width="300" height="300"></canvas></div><button class="tool-btn tool-btn-secondary" onclick="download()" style="width:100%;margin-top:12px;">下载</button></div></div></div><div class="tool-toast"></div><script>function showToast(msg){const toast=document.querySelector('.tool-toast');toast.textContent=msg;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2000);}function generate(){const text=document.getElementById('text').value;if(!text){showToast('请输入内容');return;}const canvas=document.getElementById('qrcode');const ctx=canvas.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle='black';const cellSize=canvas.width/25;for(let i=0;i<25;i++){for(let j=0;j<25;j++){if((i+j)%2===0){ctx.fillRect(i*cellSize,j*cellSize,cellSize,cellSize);}}}document.getElementById('resultSection').style.display='block';showToast('二维码生成完成');}function download(){const canvas=document.getElementById('qrcode');const url=canvas.toDataURL('image/png');const a=document.createElement('a');a.href=url;a.download='qrcode.png';a.click();showToast('已下载');}</script></body></html>
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>二维码生成 - ToolsHub</title>
+	<link rel="stylesheet" href="../../styles/main.css">
+	<style>
+		.qr-shell { display: grid; gap: 16px; }
+		.qr-panel { text-align: center; }
+		.qr-canvas-wrap { display: inline-flex; padding: 16px; background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; }
+		#qrcode { width: 260px; height: 260px; }
+	</style>
+	<script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+</head>
+<body>
+	<div class="tool-page">
+		<div class="tool-topbar">
+			<a href="../../index.html" class="back-btn">← 返回</a>
+			<div class="tool-name">📲 二维码生成</div>
+		</div>
+		<div style="flex:1; padding:24px; max-width:680px; margin:0 auto; width:100%;">
+			<div class="tool-section qr-shell">
+				<div>
+					<h3 class="section-title">输入内容</h3>
+					<textarea id="text" class="tool-textarea" placeholder="输入 URL、文本、联系方式等内容">https://toolshub.example.com</textarea>
+				</div>
+				<div class="tool-row">
+					<div style="flex:1; min-width:180px;">
+						<label style="display:block; font-size:13px; color:#6b7280; margin-bottom:6px;">尺寸</label>
+						<input id="size" type="range" min="160" max="480" step="20" value="260" style="width:100%;">
+						<div style="font-size:12px; color:#6b7280; margin-top:4px;"><span id="sizeValue">260</span> px</div>
+					</div>
+					<div>
+						<label style="display:block; font-size:13px; color:#6b7280; margin-bottom:6px;">前景色</label>
+						<input id="foreground" type="color" value="#111827" style="width:56px; height:42px; border:1px solid #e5e7eb; border-radius:8px;">
+					</div>
+					<div>
+						<label style="display:block; font-size:13px; color:#6b7280; margin-bottom:6px;">背景色</label>
+						<input id="background" type="color" value="#ffffff" style="width:56px; height:42px; border:1px solid #e5e7eb; border-radius:8px;">
+					</div>
+				</div>
+				<div class="tool-actions">
+					<button class="tool-btn tool-btn-primary" onclick="renderQr()">生成二维码</button>
+					<button class="tool-btn tool-btn-secondary" onclick="downloadQr()">下载 PNG</button>
+				</div>
+			</div>
+			<div class="tool-section qr-panel">
+				<h3 class="section-title">二维码预览</h3>
+				<div class="qr-canvas-wrap">
+					<canvas id="qrcode" width="260" height="260"></canvas>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="tool-toast"></div>
+	<script>
+		const qr = new QRious({
+			element: document.getElementById('qrcode'),
+			value: 'https://toolshub.example.com',
+			size: 260,
+			foreground: '#111827',
+			background: '#ffffff',
+			level: 'H'
+		});
+
+		function showToast(message) {
+			const toast = document.querySelector('.tool-toast');
+			toast.textContent = message;
+			toast.classList.add('show');
+			setTimeout(() => toast.classList.remove('show'), 2000);
+		}
+
+		function renderQr() {
+			const value = document.getElementById('text').value.trim();
+			if (!value) {
+				showToast('请输入要生成的内容');
+				return;
+			}
+			const size = Number(document.getElementById('size').value);
+			const foreground = document.getElementById('foreground').value;
+			const background = document.getElementById('background').value;
+			document.getElementById('sizeValue').textContent = size;
+			qr.set({ value, size, foreground, background });
+			showToast('二维码已生成');
+		}
+
+		function downloadQr() {
+			const link = document.createElement('a');
+			link.href = qr.toDataURL('image/png');
+			link.download = 'qrcode.png';
+			link.click();
+			showToast('二维码已下载');
+		}
+
+		document.getElementById('size').addEventListener('input', renderQr);
+		document.getElementById('foreground').addEventListener('input', renderQr);
+		document.getElementById('background').addEventListener('input', renderQr);
+		renderQr();
+	</script>
+</body>
+</html>

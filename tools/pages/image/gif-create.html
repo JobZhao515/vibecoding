@@ -1,4 +1,163 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>GIF合成 - ToolsHub</title><link rel="stylesheet" href="../../styles/main.css"></head>
-<body><div class="tool-page"><div class="tool-topbar"><a href="../../index.html" class="back-btn">← 返回</a><div class="tool-name">📸 GIF合成</div></div><div style="flex:1; padding: 24px; max-width: 800px; margin: 0 auto; width: 100%;"><div class="tool-section"><h3 class="section-title">选择图片</h3><label class="tool-upload-area" id="uploadArea" onclick="document.getElementById('files').click()"><div class="upload-icon">🖼️</div><div class="upload-text">点击上传多张图片</div><input id="files" type="file" accept="image/*" multiple style="display:none;" onchange="handleFiles(event)"></label></div><div class="tool-section" id="previewSection" style="display:none;"><h3 class="section-title">已选择<span id="fileCount">0</span>张图片</h3><div id="preview" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;max-height:300px;overflow-y:auto;"></div><div style="margin-top:12px;"><label style="display:block;font-size:13px;color:#6b7280;margin-bottom:6px;">播放速度（毫秒/帧）</label><input id="delay" type="number" class="tool-input" value="100" min="50" max="1000"></div><button class="tool-btn tool-btn-primary" onclick="createGif()" style="width:100%;margin-top:12px;">生成GIF</button></div><div class="tool-section" id="resultSection" style="display:none;"><h3 class="section-title">合成完成</h3><p style="font-size:13px;color:#6b7280;margin-bottom:12px;">GIF合成需要gif.js库，建议使用在线GIF工具</p><button class="tool-btn tool-btn-secondary" onclick="reset()">重新选择</button></div></div></div><div class="tool-toast"></div><script>let selectedFiles=[];function showToast(msg){const toast=document.querySelector('.tool-toast');toast.textContent=msg;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2000);}function handleFiles(event){selectedFiles=Array.from(event.target.files);if(selectedFiles.length===0){showToast('请选择图片');return;}if(selectedFiles.some(f=>!f.type.startsWith('image/'))){showToast('只支持图片文件');return;}document.getElementById('fileCount').textContent=selectedFiles.length;const preview=document.getElementById('preview');preview.innerHTML=selectedFiles.map((f,i)=>`<div style="position:relative;width:80px;height:80px;"><img src="${URL.createObjectURL(f)}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"><button style="position:absolute;top:0;right:0;width:20px;height:20px;border-radius:50%;background:#f00;color:white;border:none;cursor:pointer;font-size:12px;" onclick="removeFile(${i})">×</button></div>`).join('');document.getElementById('previewSection').style.display='block';}function removeFile(index){selectedFiles.splice(index,1);document.getElementById('fileCount').textContent=selectedFiles.length;if(selectedFiles.length===0){document.getElementById('previewSection').style.display='none';}else{handleFiles({target:{files:selectedFiles}});}}function createGif(){if(selectedFiles.length<2){showToast('至少选择2张图片');return;}showToast('提示：完整GIF合成需要gif.js库，建议使用在线GIF工具');document.getElementById('resultSection').style.display='block';}function reset(){selectedFiles=[];document.getElementById('files').value='';document.getElementById('previewSection').style.display='none';document.getElementById('resultSection').style.display='none';}</script></body></html>
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>GIF合成 - ToolsHub</title>
+	<link rel="stylesheet" href="../../styles/main.css">
+	<script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
+</head>
+<body>
+	<div class="tool-page">
+		<div class="tool-topbar">
+			<a href="../../index.html" class="back-btn">← 返回</a>
+			<div class="tool-name">📸 GIF合成</div>
+		</div>
+		<div style="flex:1; padding:24px; max-width:860px; margin:0 auto; width:100%;">
+			<div class="tool-section">
+				<h3 class="section-title">选择图片</h3>
+				<label class="tool-upload-area" for="files">
+					<div class="upload-icon">🖼️</div>
+					<div class="upload-text">上传多张图片，按当前顺序合成为 GIF</div>
+				</label>
+				<input id="files" type="file" accept="image/*" multiple onchange="handleFiles(event)">
+			</div>
+			<div class="tool-section" id="previewSection" style="display:none;">
+				<h3 class="section-title">已选择 <span id="fileCount">0</span> 张图片</h3>
+				<div id="preview" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(100px, 1fr)); gap:10px; margin-bottom:16px;"></div>
+				<div style="margin-bottom:16px;">
+					<label style="display:block; font-size:13px; color:#6b7280; margin-bottom:6px;">每帧时长</label>
+					<input id="delay" type="range" min="80" max="1200" step="20" value="240" style="width:100%;">
+					<div style="font-size:12px; color:#6b7280; margin-top:4px;"><span id="delayValue">240</span> ms / 帧</div>
+				</div>
+				<div class="tool-actions">
+					<button class="tool-btn tool-btn-primary" onclick="createGif()">生成 GIF</button>
+					<button class="tool-btn tool-btn-secondary" onclick="resetTool()">重置</button>
+				</div>
+			</div>
+			<div class="tool-section" id="resultSection" style="display:none;">
+				<h3 class="section-title">合成结果</h3>
+				<img id="gifPreview" alt="GIF 预览" style="width:100%; max-height:420px; object-fit:contain; background:#fff; border-radius:12px; border:1px solid #e5e7eb; margin-bottom:12px;">
+				<button class="tool-btn tool-btn-primary" onclick="downloadGif()">下载 GIF</button>
+			</div>
+		</div>
+	</div>
+	<div class="tool-toast"></div>
+	<script>
+		let selectedFiles = [];
+		let generatedBlob = null;
+
+		function showToast(message) {
+			const toast = document.querySelector('.tool-toast');
+			toast.textContent = message;
+			toast.classList.add('show');
+			setTimeout(() => toast.classList.remove('show'), 2000);
+		}
+
+		function handleFiles(event) {
+			selectedFiles = Array.from(event.target.files).filter(file => file.type.startsWith('image/'));
+			generatedBlob = null;
+			document.getElementById('resultSection').style.display = 'none';
+			document.getElementById('fileCount').textContent = selectedFiles.length;
+			document.getElementById('previewSection').style.display = selectedFiles.length ? 'block' : 'none';
+			renderPreview();
+			if (selectedFiles.length && selectedFiles.length < 2) {
+				showToast('至少需要 2 张图片');
+			}
+		}
+
+		function renderPreview() {
+			document.getElementById('preview').innerHTML = selectedFiles.map((file, index) => `
+				<div>
+					<img src="${URL.createObjectURL(file)}" alt="${file.name}" style="width:100%; height:100px; object-fit:cover; border-radius:10px; border:1px solid #e5e7eb;">
+					<div style="margin-top:6px; font-size:12px; color:#6b7280;">${index + 1}. ${file.name}</div>
+				</div>
+			`).join('');
+		}
+
+		async function loadImage(file) {
+			return new Promise((resolve, reject) => {
+				const url = URL.createObjectURL(file);
+				const image = new Image();
+				image.onload = () => {
+					URL.revokeObjectURL(url);
+					resolve(image);
+				};
+				image.onerror = reject;
+				image.src = url;
+			});
+		}
+
+		async function createGif() {
+			if (selectedFiles.length < 2) {
+				showToast('至少需要 2 张图片');
+				return;
+			}
+			const delay = Number(document.getElementById('delay').value);
+			const images = await Promise.all(selectedFiles.map(loadImage));
+			const width = Math.max(...images.map(image => image.width));
+			const height = Math.max(...images.map(image => image.height));
+			const gif = new GIF({
+				workers: 2,
+				quality: 10,
+				width,
+				height,
+				workerScript: 'https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.worker.js'
+			});
+
+			images.forEach(image => {
+				const canvas = document.createElement('canvas');
+				canvas.width = width;
+				canvas.height = height;
+				const ctx = canvas.getContext('2d');
+				ctx.fillStyle = '#ffffff';
+				ctx.fillRect(0, 0, width, height);
+				const ratio = Math.min(width / image.width, height / image.height);
+				const drawWidth = image.width * ratio;
+				const drawHeight = image.height * ratio;
+				const x = (width - drawWidth) / 2;
+				const y = (height - drawHeight) / 2;
+				ctx.drawImage(image, x, y, drawWidth, drawHeight);
+				gif.addFrame(canvas, { delay });
+			});
+
+			showToast('正在生成 GIF，请稍候');
+			gif.on('finished', blob => {
+				generatedBlob = blob;
+				const url = URL.createObjectURL(blob);
+				document.getElementById('gifPreview').src = url;
+				document.getElementById('resultSection').style.display = 'block';
+				showToast('GIF 生成完成');
+			});
+			gif.render();
+		}
+
+		function downloadGif() {
+			if (!generatedBlob) {
+				showToast('请先生成 GIF');
+				return;
+			}
+			const url = URL.createObjectURL(generatedBlob);
+			const link = document.createElement('a');
+			link.href = url;
+			link.download = 'animated.gif';
+			link.click();
+			URL.revokeObjectURL(url);
+		}
+
+		function resetTool() {
+			selectedFiles = [];
+			generatedBlob = null;
+			document.getElementById('files').value = '';
+			document.getElementById('previewSection').style.display = 'none';
+			document.getElementById('resultSection').style.display = 'none';
+			document.getElementById('preview').innerHTML = '';
+			document.getElementById('gifPreview').removeAttribute('src');
+		}
+
+		document.getElementById('delay').addEventListener('input', event => {
+			document.getElementById('delayValue').textContent = event.target.value;
+		});
+	</script>
+</body>
+</html>

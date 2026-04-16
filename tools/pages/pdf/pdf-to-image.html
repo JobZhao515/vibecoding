@@ -1,4 +1,148 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>PDF转图片 - ToolsHub</title><link rel="stylesheet" href="../../styles/main.css"></head>
-<body><div class="tool-page"><div class="tool-topbar"><a href="../../index.html" class="back-btn">← 返回</a><div class="tool-name">🖼️ PDF转图片</div></div><div style="flex:1; padding: 24px; max-width: 800px; margin: 0 auto; width: 100%;"><div class="tool-section"><h3 class="section-title">上传PDF</h3><label class="tool-upload-area" onclick="document.getElementById('file').click()"><div class="upload-icon">📄</div><div class="upload-text">点击上传PDF文件</div><input id="file" type="file" accept=".pdf" style="display:none;" onchange="handleFile(event)"></label></div><div class="tool-section" id="optionSection" style="display:none;"><h3 class="section-title">转换选项</h3><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;color:#6b7280;margin-bottom:6px;">格式</label><select class="tool-select"><option>PNG</option><option>JPG</option><option>WEBP</option></select></div><div style="margin-bottom:12px;"><label style="display:block;font-size:13px;color:#6b7280;margin-bottom:6px;">分辨率</label><select class="tool-select"><option>96 DPI</option><option>150 DPI</option><option>300 DPI</option></select></div><button class="tool-btn tool-btn-primary" onclick="convert()" style="width:100%;">开始转换</button></div><div class="tool-section" id="resultSection" style="display:none;"><h3 class="section-title">转换提示</h3><p style="font-size:13px;color:#6b7280;margin-bottom:12px;">PDF转图片需要专业库（如 pdf.js），建议使用在线工具或专业应用处理。</p><button class="tool-btn tool-btn-secondary" onclick="reset()">返回</button></div></div></div><div class="tool-toast"></div><script>function handleFile(event){const file=event.target.files[0];if(!file||file.type!=='application/pdf'){const toast=document.querySelector('.tool-toast');toast.textContent='请选择PDF文件';toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2000);return;}document.getElementById('optionSection').style.display='block';}function convert(){document.getElementById('resultSection').style.display='block';}function reset(){document.getElementById('file').value='';document.getElementById('optionSection').style.display='none';document.getElementById('resultSection').style.display='none';}</script></body></html>
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>PDF转图片 - ToolsHub</title>
+	<link rel="stylesheet" href="../../styles/main.css">
+</head>
+<body>
+	<div class="tool-page">
+		<div class="tool-topbar">
+			<a href="../../index.html" class="back-btn">← 返回</a>
+			<div class="tool-name">🖼️ PDF转图片</div>
+		</div>
+		<div style="flex:1; padding:24px; max-width:960px; margin:0 auto; width:100%;">
+			<div class="tool-section">
+				<h3 class="section-title">上传 PDF</h3>
+				<label class="tool-upload-area" for="file">
+					<div class="upload-icon">📄</div>
+					<div class="upload-text">选择一个 PDF 文件，转换为 PNG、JPG 或 WebP 图片</div>
+				</label>
+				<input id="file" type="file" accept="application/pdf,.pdf">
+			</div>
+			<div class="tool-section" id="optionSection" style="display:none;">
+				<h3 class="section-title">转换选项</h3>
+				<div class="tool-row">
+					<div>
+						<label style="display:block; font-size:13px; color:#6b7280; margin-bottom:6px;">图片格式</label>
+						<select id="format" class="tool-select">
+							<option value="image/png">PNG</option>
+							<option value="image/jpeg">JPG</option>
+							<option value="image/webp">WEBP</option>
+						</select>
+					</div>
+					<div style="flex:1; min-width:240px;">
+						<label style="display:block; font-size:13px; color:#6b7280; margin-bottom:6px;">缩放倍率</label>
+						<input id="scale" type="range" min="1" max="3" step="0.25" value="1.5" style="width:100%;">
+						<div style="font-size:12px; color:#6b7280; margin-top:4px;">当前: <span id="scaleValue">1.5</span>x</div>
+					</div>
+				</div>
+				<div class="tool-actions">
+					<button class="tool-btn tool-btn-primary" onclick="convertPdf()">开始转换</button>
+					<button class="tool-btn tool-btn-secondary" onclick="resetTool()">重置</button>
+				</div>
+			</div>
+			<div class="tool-section" id="resultSection" style="display:none;">
+				<h3 class="section-title">导出结果</h3>
+				<div id="resultList" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px;"></div>
+			</div>
+		</div>
+	</div>
+	<div class="tool-toast"></div>
+	<script type="module">
+		import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.min.mjs';
+		pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs';
+
+		let pdfBytes = null;
+		let renderedImages = [];
+
+		function showToast(message) {
+			const toast = document.querySelector('.tool-toast');
+			toast.textContent = message;
+			toast.classList.add('show');
+			setTimeout(() => toast.classList.remove('show'), 2000);
+		}
+
+		async function handleFile(event) {
+			const file = event.target.files[0];
+			renderedImages = [];
+			document.getElementById('resultSection').style.display = 'none';
+			if (!file || (!file.type.includes('pdf') && !file.name.toLowerCase().endsWith('.pdf'))) {
+				showToast('请选择 PDF 文件');
+				return;
+			}
+			pdfBytes = await file.arrayBuffer();
+			document.getElementById('optionSection').style.display = 'block';
+			showToast('PDF 已加载');
+		}
+
+		async function convertPdf() {
+			if (!pdfBytes) {
+				showToast('请先上传 PDF');
+				return;
+			}
+			const format = document.getElementById('format').value;
+			const scale = Number(document.getElementById('scale').value);
+			const pdf = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+			renderedImages = [];
+			for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+				const page = await pdf.getPage(pageNumber);
+				const viewport = page.getViewport({ scale });
+				const canvas = document.createElement('canvas');
+				canvas.width = viewport.width;
+				canvas.height = viewport.height;
+				await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+				renderedImages.push({
+					pageNumber,
+					dataUrl: canvas.toDataURL(format, format === 'image/png' ? undefined : 0.92)
+				});
+			}
+			renderResults(format);
+			document.getElementById('resultSection').style.display = 'block';
+			showToast(`已转换 ${renderedImages.length} 页`);
+		}
+
+		function renderResults(format) {
+			const ext = format.split('/')[1] === 'jpeg' ? 'jpg' : format.split('/')[1];
+			document.getElementById('resultList').innerHTML = renderedImages.map(item => `
+				<div style="border:1px solid #e5e7eb; border-radius:12px; padding:12px; background:#fff;">
+					<img src="${item.dataUrl}" alt="page-${item.pageNumber}" style="width:100%; height:240px; object-fit:contain; background:#f5f7fa; border-radius:8px; margin-bottom:10px;">
+					<div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+						<span style="font-size:13px; color:#6b7280;">第 ${item.pageNumber} 页</span>
+						<button class="tool-btn tool-btn-secondary" data-page="${item.pageNumber}" data-ext="${ext}">下载</button>
+					</div>
+				</div>
+			`).join('');
+			document.querySelectorAll('#resultList button[data-page]').forEach(button => {
+				button.addEventListener('click', () => downloadImage(Number(button.dataset.page), button.dataset.ext));
+			});
+		}
+
+		function downloadImage(pageNumber, ext) {
+			const item = renderedImages.find(entry => entry.pageNumber === pageNumber);
+			if (!item) return;
+			const link = document.createElement('a');
+			link.href = item.dataUrl;
+			link.download = `pdf-page-${pageNumber}.${ext}`;
+			link.click();
+		}
+
+		function resetTool() {
+			pdfBytes = null;
+			renderedImages = [];
+			document.getElementById('file').value = '';
+			document.getElementById('optionSection').style.display = 'none';
+			document.getElementById('resultSection').style.display = 'none';
+			document.getElementById('resultList').innerHTML = '';
+		}
+
+		document.getElementById('file').addEventListener('change', handleFile);
+		document.getElementById('scale').addEventListener('input', event => {
+			document.getElementById('scaleValue').textContent = event.target.value;
+		});
+		window.convertPdf = convertPdf;
+		window.resetTool = resetTool;
+	</script>
+</body>
+</html>

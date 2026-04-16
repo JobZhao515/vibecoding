@@ -1,4 +1,127 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>PDF拆分 - ToolsHub</title><link rel="stylesheet" href="../../styles/main.css"></head>
-<body><div class="tool-page"><div class="tool-topbar"><a href="../../index.html" class="back-btn">← 返回</a><div class="tool-name">✂️ PDF拆分</div></div><div style="flex:1; padding: 24px; max-width: 700px; margin: 0 auto; width: 100%;"><div class="tool-section"><h3 class="section-title">上传PDF</h3><label class="tool-upload-area" onclick="document.getElementById('file').click()"><div class="upload-icon">📄</div><div class="upload-text">点击上传PDF文件</div><input id="file" type="file" accept=".pdf" style="display:none;" onchange="handleFile(event)"></label></div><div class="tool-section" id="configSection" style="display:none;"><h3 class="section-title">提取范围</h3><p id="pageInfo" style="font-size:12px;color:#6b7280;margin-bottom:12px;"></p><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;"><div><label style="display:block;font-size:13px;color:#6b7280;margin-bottom:6px;">起始页</label><input id="startPage" type="number" class="tool-input" min="1" value="1"></div><div><label style="display:block;font-size:13px;color:#6b7280;margin-bottom:6px;">结束页</label><input id="endPage" type="number" class="tool-input" min="1" value="1"></div></div><button class="tool-btn tool-btn-primary" onclick="extract()" style="width:100%;">提取页面</button></div><div class="tool-section" id="resultSection" style="display:none;"><h3 class="section-title">提示</h3><p style="font-size:13px;color:#6b7280;margin-bottom:12px;">PDF拆分功能需要 pdf-lib 库，建议使用在线PDF工具或本地应用完成此任务。</p></div></div></div><div class="tool-toast"></div><script>let totalPages=0;function handleFile(event){const file=event.target.files[0];if(!file||file.type!=='application/pdf'){const toast=document.querySelector('.tool-toast');toast.textContent='请选择PDF文件';toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2000);return;}totalPages=Math.ceil(Math.random()*100)+1;document.getElementById('pageInfo').textContent='PDF共有约'+totalPages+'页（预估）';document.getElementById('endPage').max=totalPages;document.getElementById('endPage').value=Math.min(1,totalPages);document.getElementById('configSection').style.display='block';}function extract(){document.getElementById('resultSection').style.display='block';const toast=document.querySelector('.tool-toast');toast.textContent='提示：完整PDF处理需要库支持';toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2000);}</script></body></html>
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>PDF拆分 - ToolsHub</title>
+	<link rel="stylesheet" href="../../styles/main.css">
+	<script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
+</head>
+<body>
+	<div class="tool-page">
+		<div class="tool-topbar">
+			<a href="../../index.html" class="back-btn">← 返回</a>
+			<div class="tool-name">✂️ PDF拆分</div>
+		</div>
+		<div style="flex:1; padding:24px; max-width:760px; margin:0 auto; width:100%;">
+			<div class="tool-section">
+				<h3 class="section-title">上传 PDF</h3>
+				<label class="tool-upload-area" for="file">
+					<div class="upload-icon">📄</div>
+					<div class="upload-text">选择一个 PDF 文件，然后填写需要提取的页码范围</div>
+				</label>
+				<input id="file" type="file" accept="application/pdf,.pdf" onchange="handleFile(event)">
+			</div>
+			<div class="tool-section" id="configSection" style="display:none;">
+				<h3 class="section-title">提取范围</h3>
+				<p id="pageInfo" style="font-size:13px; color:#6b7280; margin-bottom:12px;"></p>
+				<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+					<div>
+						<label style="display:block; font-size:13px; color:#6b7280; margin-bottom:6px;">起始页</label>
+						<input id="startPage" type="number" class="tool-input" min="1" value="1">
+					</div>
+					<div>
+						<label style="display:block; font-size:13px; color:#6b7280; margin-bottom:6px;">结束页</label>
+						<input id="endPage" type="number" class="tool-input" min="1" value="1">
+					</div>
+				</div>
+				<div class="tool-actions">
+					<button class="tool-btn tool-btn-primary" onclick="extractPages()">提取页面</button>
+					<button class="tool-btn tool-btn-secondary" onclick="resetTool()">重置</button>
+				</div>
+			</div>
+			<div class="tool-section" id="resultSection" style="display:none;">
+				<h3 class="section-title">拆分完成</h3>
+				<p id="resultInfo" style="font-size:13px; color:#6b7280; margin-bottom:12px;"></p>
+				<button class="tool-btn tool-btn-primary" onclick="downloadSplitPdf()">下载拆分后的 PDF</button>
+			</div>
+		</div>
+	</div>
+	<div class="tool-toast"></div>
+	<script>
+		let sourcePdf = null;
+		let extractedBytes = null;
+		let totalPages = 0;
+
+		function showToast(message) {
+			const toast = document.querySelector('.tool-toast');
+			toast.textContent = message;
+			toast.classList.add('show');
+			setTimeout(() => toast.classList.remove('show'), 2000);
+		}
+
+		async function handleFile(event) {
+			const file = event.target.files[0];
+			extractedBytes = null;
+			document.getElementById('resultSection').style.display = 'none';
+			if (!file || (!file.type.includes('pdf') && !file.name.toLowerCase().endsWith('.pdf'))) {
+				showToast('请选择 PDF 文件');
+				return;
+			}
+			sourcePdf = await PDFLib.PDFDocument.load(await file.arrayBuffer());
+			totalPages = sourcePdf.getPageCount();
+			document.getElementById('pageInfo').textContent = `当前文件共 ${totalPages} 页。`;
+			document.getElementById('startPage').max = totalPages;
+			document.getElementById('endPage').max = totalPages;
+			document.getElementById('startPage').value = 1;
+			document.getElementById('endPage').value = totalPages;
+			document.getElementById('configSection').style.display = 'block';
+			showToast('PDF 已读取');
+		}
+
+		async function extractPages() {
+			if (!sourcePdf) {
+				showToast('请先上传 PDF');
+				return;
+			}
+			const startPage = Number(document.getElementById('startPage').value);
+			const endPage = Number(document.getElementById('endPage').value);
+			if (startPage < 1 || endPage < startPage || endPage > totalPages) {
+				showToast('请输入有效的页码范围');
+				return;
+			}
+			const outputPdf = await PDFLib.PDFDocument.create();
+			const indices = Array.from({ length: endPage - startPage + 1 }, (_, index) => startPage - 1 + index);
+			const copiedPages = await outputPdf.copyPages(sourcePdf, indices);
+			copiedPages.forEach(page => outputPdf.addPage(page));
+			extractedBytes = await outputPdf.save();
+			document.getElementById('resultInfo').textContent = `已提取第 ${startPage} 到 ${endPage} 页，共 ${indices.length} 页。`;
+			document.getElementById('resultSection').style.display = 'block';
+			showToast('PDF 拆分完成');
+		}
+
+		function downloadSplitPdf() {
+			if (!extractedBytes) {
+				showToast('请先完成拆分');
+				return;
+			}
+			const blob = new Blob([extractedBytes], { type: 'application/pdf' });
+			const url = URL.createObjectURL(blob);
+			const link = document.createElement('a');
+			link.href = url;
+			link.download = 'split.pdf';
+			link.click();
+			URL.revokeObjectURL(url);
+		}
+
+		function resetTool() {
+			sourcePdf = null;
+			extractedBytes = null;
+			totalPages = 0;
+			document.getElementById('file').value = '';
+			document.getElementById('configSection').style.display = 'none';
+			document.getElementById('resultSection').style.display = 'none';
+		}
+	</script>
+</body>
+</html>

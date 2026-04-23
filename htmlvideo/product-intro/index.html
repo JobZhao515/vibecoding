@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #F5F5F0;
+        font-family: "DM Sans", sans-serif;
+      }
+
+      .scene {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #F5F5F0;
+      }
+
+      #scene2 {
+        z-index: 2;
+        opacity: 0;
+      }
+
+      #scene1 {
+        z-index: 1;
+      }
+
+      /* ---- Scene 1: Title Card ---- */
+      .s1-content {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        padding: 120px 160px;
+        gap: 20px;
+        box-sizing: border-box;
+      }
+
+      .s1-rule {
+        width: 80px;
+        height: 4px;
+        background: #0052CC;
+        border-radius: 2px;
+      }
+
+      .s1-title {
+        font-size: 110px;
+        font-weight: 800;
+        color: #1B1B1B;
+        line-height: 1.05;
+        letter-spacing: -0.03em;
+        max-width: 1200px;
+      }
+
+      .s1-subtitle {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 28px;
+        font-weight: 400;
+        color: #6B7280;
+        letter-spacing: 0.02em;
+        margin-top: 8px;
+      }
+
+      .s1-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #0052CC;
+        color: #F5F5F0;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 16px;
+        font-weight: 400;
+        padding: 8px 20px;
+        border-radius: 4px;
+        margin-top: 12px;
+        width: fit-content;
+      }
+
+      /* Scene 1 decoratives */
+      .s1-grid-lines {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 600px;
+        height: 100%;
+        opacity: 0.06;
+      }
+
+      .s1-grid-line {
+        position: absolute;
+        background: #1B1B1B;
+      }
+
+      .s1-grid-line.v1 { left: 200px; top: 0; width: 1px; height: 100%; }
+      .s1-grid-line.v2 { left: 400px; top: 0; width: 1px; height: 100%; }
+      .s1-grid-line.h1 { left: 0; top: 300px; width: 100%; height: 1px; }
+      .s1-grid-line.h2 { left: 0; top: 600px; width: 100%; height: 1px; }
+
+      .s1-accent-dot {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #0052CC;
+        opacity: 0.15;
+      }
+
+      .s1-accent-dot.d1 { right: 280px; top: 180px; }
+      .s1-accent-dot.d2 { right: 120px; top: 520px; width: 8px; height: 8px; }
+      .s1-accent-dot.d3 { right: 400px; bottom: 200px; width: 16px; height: 16px; }
+
+      .s1-ghost-text {
+        position: absolute;
+        right: -40px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 260px;
+        font-weight: 800;
+        color: #1B1B1B;
+        opacity: 0.03;
+        letter-spacing: -0.05em;
+        white-space: nowrap;
+      }
+
+      /* ---- Scene 2: Feature Highlight ---- */
+      .s2-content {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+      }
+
+      .s2-left {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        width: 55%;
+        padding: 100px 80px 100px 160px;
+        gap: 24px;
+        box-sizing: border-box;
+      }
+
+      .s2-right {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 45%;
+        padding: 80px;
+        box-sizing: border-box;
+      }
+
+      .s2-label {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 18px;
+        font-weight: 400;
+        color: #0052CC;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .s2-heading {
+        font-size: 72px;
+        font-weight: 800;
+        color: #1B1B1B;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+      }
+
+      .s2-body {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 22px;
+        font-weight: 400;
+        color: #6B7280;
+        line-height: 1.6;
+        max-width: 540px;
+      }
+
+      .s2-stat-row {
+        display: flex;
+        gap: 60px;
+        margin-top: 8px;
+      }
+
+      .s2-stat {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .s2-stat-value {
+        font-size: 48px;
+        font-weight: 800;
+        color: #0052CC;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .s2-stat-label {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 14px;
+        color: #6B7280;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .s2-card {
+        width: 420px;
+        height: 480px;
+        background: #E2E5EA;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .s2-card-icon {
+        font-size: 120px;
+        color: #0052CC;
+        opacity: 0.2;
+      }
+
+      .s2-card-label {
+        position: absolute;
+        bottom: 32px;
+        left: 32px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 14px;
+        color: #6B7280;
+        letter-spacing: 0.04em;
+      }
+
+      /* Scene 2 decoratives */
+      .s2-divider {
+        position: absolute;
+        left: 55%;
+        top: 120px;
+        width: 1px;
+        height: 840px;
+        background: #E2E5EA;
+      }
+
+      .s2-corner-mark {
+        position: absolute;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        color: #6B7280;
+        opacity: 0.3;
+      }
+
+      .s2-corner-mark.top-right { top: 40px; right: 60px; }
+      .s2-corner-mark.bottom-left { bottom: 40px; left: 160px; }
+    </style>
+  </head>
+  <body>
+    <!-- Background video (muted, full-bleed behind scenes) -->
+    <video id="el-bg-video" data-start="0" data-duration="10" data-track-index="0" data-volume="0"
+      src="background.mp4" muted playsinline crossorigin="anonymous"
+      style="position:absolute;top:0;left:0;width:1920px;height:1080px;object-fit:cover;opacity:0.08;z-index:0;"></video>
+
+    <!-- Background music -->
+    <audio id="el-bg-music" data-start="0" data-duration="10" data-track-index="3" data-volume="0.4"
+      src="background-music.mp3" crossorigin="anonymous"></audio>
+
+    <div
+      id="root"
+      data-composition-id="product-intro"
+      data-width="1920"
+      data-height="1080"
+      data-start="0"
+      data-duration="10"
+    >
+      <!-- Scene 1: Title Card (0s–5.4s) -->
+      <div id="scene1" class="scene" data-track-index="1">
+        <div class="s1-content">
+          <div class="s1-rule" id="s1-rule"></div>
+          <div class="s1-title" id="s1-title">Your Product,<br>Reimagined.</div>
+          <div class="s1-subtitle" id="s1-subtitle">Built for speed. Designed for clarity.</div>
+          <div class="s1-badge" id="s1-badge">&#9679; Available Now</div>
+        </div>
+
+        <!-- Decoratives -->
+        <div class="s1-ghost-text" id="s1-ghost">PRODUCT</div>
+        <div class="s1-grid-lines" id="s1-grid">
+          <div class="s1-grid-line v1"></div>
+          <div class="s1-grid-line v2"></div>
+          <div class="s1-grid-line h1"></div>
+          <div class="s1-grid-line h2"></div>
+        </div>
+        <div class="s1-accent-dot d1" id="s1-dot1"></div>
+        <div class="s1-accent-dot d2" id="s1-dot2"></div>
+        <div class="s1-accent-dot d3" id="s1-dot3"></div>
+      </div>
+
+      <!-- Scene 2: Feature Highlight (5s–10s) -->
+      <div id="scene2" class="scene" data-track-index="2">
+        <div class="s2-content">
+          <div class="s2-left">
+            <div class="s2-label" id="s2-label">Why It Matters</div>
+            <div class="s2-heading" id="s2-heading">Faster.<br>Smarter.<br>Simpler.</div>
+            <div class="s2-body" id="s2-body">One platform to streamline your workflow and ship with confidence.</div>
+            <div class="s2-stat-row">
+              <div class="s2-stat" id="s2-stat1">
+                <div class="s2-stat-value">10x</div>
+                <div class="s2-stat-label">Faster builds</div>
+              </div>
+              <div class="s2-stat" id="s2-stat2">
+                <div class="s2-stat-value">99.9%</div>
+                <div class="s2-stat-label">Uptime</div>
+              </div>
+              <div class="s2-stat" id="s2-stat3">
+                <div class="s2-stat-value">50k+</div>
+                <div class="s2-stat-label">Teams</div>
+              </div>
+            </div>
+          </div>
+          <div class="s2-right">
+            <div class="s2-card" id="s2-card">
+              <div class="s2-card-icon">&#9671;</div>
+              <div class="s2-card-label">product_v2.0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Decoratives -->
+        <div class="s2-divider" id="s2-divider"></div>
+        <div class="s2-corner-mark top-right">PROD-INTRO / 002</div>
+        <div class="s2-corner-mark bottom-left">2026.04</div>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      // ==============================
+      // Scene 1: Title Card Entrances
+      // ==============================
+
+      // Decoratives — subtle ambient fade-in
+      tl.from("#s1-ghost", { opacity: 0, x: 40, duration: 1.2, ease: "power1.out" }, 0.1);
+      tl.from("#s1-grid", { opacity: 0, duration: 0.8, ease: "sine.out" }, 0.2);
+
+      // Accent dots breathe in
+      tl.from("#s1-dot1", { scale: 0, opacity: 0, duration: 0.4, ease: "back.out(2)" }, 0.5);
+      tl.from("#s1-dot2", { scale: 0, opacity: 0, duration: 0.3, ease: "back.out(2.5)" }, 0.8);
+      tl.from("#s1-dot3", { scale: 0, opacity: 0, duration: 0.35, ease: "back.out(1.8)" }, 1.1);
+
+      // Rule slides in from left
+      tl.from("#s1-rule", { scaleX: 0, transformOrigin: "left center", duration: 0.4, ease: "expo.out" }, 0.2);
+
+      // Title fades up — the hero entrance
+      tl.from("#s1-title", { y: 50, opacity: 0, duration: 0.6, ease: "power3.out" }, 0.35);
+
+      // Subtitle slides in from slight left
+      tl.from("#s1-subtitle", { x: -30, opacity: 0, duration: 0.5, ease: "power2.out" }, 0.7);
+
+      // Badge pops in
+      tl.from("#s1-badge", { y: 20, opacity: 0, scale: 0.9, duration: 0.4, ease: "expo.out" }, 1.0);
+
+      // Ghost text ambient drift
+      tl.to("#s1-ghost", { x: -20, duration: 4.5, ease: "sine.inOut" }, 0.5);
+
+      // Dot ambient pulse
+      tl.to("#s1-dot1", { scale: 1.3, duration: 2, ease: "sine.inOut", yoyo: true, repeat: 1 }, 1.5);
+
+      // ==============================
+      // Transition: Blur Crossfade at 5.0s
+      // ==============================
+      var T = 5.0;
+      tl.to("#scene1", { filter: "blur(10px)", scale: 1.03, opacity: 0, duration: 0.5, ease: "power2.inOut" }, T);
+      tl.fromTo("#scene2",
+        { filter: "blur(10px)", scale: 0.97, opacity: 0 },
+        { filter: "blur(0px)", scale: 1, opacity: 1, duration: 0.5, ease: "power2.inOut" }, T + 0.1);
+
+      // ==============================
+      // Scene 2: Feature Highlight Entrances
+      // ==============================
+      var S2 = 5.4;
+
+      // Divider draws in
+      tl.from("#s2-divider", { scaleY: 0, transformOrigin: "top center", duration: 0.5, ease: "expo.out" }, S2);
+
+      // Label from left
+      tl.from("#s2-label", { x: -40, opacity: 0, duration: 0.4, ease: "power3.out" }, S2 + 0.1);
+
+      // Heading staggers per line — y entrance
+      tl.from("#s2-heading", { y: 40, opacity: 0, duration: 0.5, ease: "expo.out" }, S2 + 0.25);
+
+      // Body text fades
+      tl.from("#s2-body", { opacity: 0, y: 20, duration: 0.4, ease: "power2.out" }, S2 + 0.5);
+
+      // Stats stagger — each from different direction
+      tl.from("#s2-stat1", { y: 30, opacity: 0, duration: 0.35, ease: "power3.out" }, S2 + 0.7);
+      tl.from("#s2-stat2", { y: 30, opacity: 0, duration: 0.35, ease: "expo.out" }, S2 + 0.85);
+      tl.from("#s2-stat3", { y: 30, opacity: 0, duration: 0.35, ease: "power4.out" }, S2 + 1.0);
+
+      // Card scales in from right
+      tl.from("#s2-card", { x: 60, scale: 0.85, opacity: 0, duration: 0.5, ease: "power3.out" }, S2 + 0.4);
+
+      // ==============================
+      // Scene 2 (Final): Exit fade to end
+      // ==============================
+      tl.to("#s2-heading", { opacity: 0, y: -20, duration: 0.4, ease: "power2.in" }, 9.2);
+      tl.to("#s2-label", { opacity: 0, duration: 0.3, ease: "power2.in" }, 9.3);
+      tl.to("#s2-body", { opacity: 0, duration: 0.3, ease: "power2.in" }, 9.3);
+      tl.to("#s2-stat1", { opacity: 0, y: -15, duration: 0.3, ease: "power2.in" }, 9.4);
+      tl.to("#s2-stat2", { opacity: 0, y: -15, duration: 0.3, ease: "power2.in" }, 9.45);
+      tl.to("#s2-stat3", { opacity: 0, y: -15, duration: 0.3, ease: "power2.in" }, 9.5);
+      tl.to("#s2-card", { opacity: 0, scale: 0.9, duration: 0.4, ease: "power2.in" }, 9.3);
+      tl.to("#s2-divider", { opacity: 0, duration: 0.3, ease: "sine.in" }, 9.4);
+
+      window.__timelines["product-intro"] = tl;
+
+      // ==============================
+      // Browser preview: auto-play if no HyperFrames player detected
+      // ==============================
+      setTimeout(function () {
+        if (!window.__hyperframes) {
+          tl.play();
+          var video = document.getElementById("el-bg-video");
+          if (video) video.play().catch(function () {});
+          var audio = document.getElementById("el-bg-music");
+          if (audio) { audio.volume = 0.4; audio.play().catch(function () {}); }
+        }
+      }, 100);
+    </script>
+  </body>
+</html>

@@ -1,2 +1,6 @@
 .deploy/
 deploy/deploy.env
+
+.DS_Store
+pixelle
+

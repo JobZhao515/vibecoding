@@ -11,6 +11,7 @@ const CATEGORIES = [
 ];
 
 const GAMES = [
+  { id: 'flightsim',  name: '飞行模拟器', cat: 'action',   emoji: '✈️', colors: ['#0ea5e9','#1d4ed8'], url: 'games/flight-sim.html' },
   // 🎮 休闲经典
   { id: 'snake',      name: '贪吃蛇',     cat: 'casual',   emoji: '🐍', colors: ['#22c55e','#16a34a'], url: 'games/snake.html' },
   { id: 'tetris',     name: '俄罗斯方块', cat: 'casual',   emoji: '🧱', colors: ['#f59e0b','#d97706'], url: 'games/tetris.html' },

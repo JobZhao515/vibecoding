@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>飞行模拟器 - PlayHub</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{min-height:100vh;background:radial-gradient(circle at top,#10233f 0,#08111f 55%,#04070d 100%);color:#eef6ff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column}
+.top-bar{display:flex;align-items:center;gap:16px;padding:12px 18px;background:rgba(5,10,18,.78);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.08)}
+.back-btn{padding:7px 14px;border-radius:999px;text-decoration:none;color:#8bd3ff;background:rgba(59,130,246,.16)}
+.game-title{font-size:1.05rem;font-weight:700;letter-spacing:.02em}
+.shell{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:18px;padding:18px;min-height:0}
+.stage{position:relative;min-height:520px;border-radius:24px;overflow:hidden;border:1px solid rgba(255,255,255,.08);box-shadow:0 24px 70px rgba(0,0,0,.38);background:#030712}
+canvas{width:100%;height:100%;display:block}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;pointer-events:none}
+.panel{max-width:420px;background:rgba(3,8,18,.72);border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.45);backdrop-filter:blur(10px)}
+.panel.hidden{display:none}
+.panel h1{font-size:2rem;margin-bottom:10px}
+.panel p{line-height:1.6;color:rgba(238,246,255,.8);font-size:.95rem}
+.panel .keys{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:18px 0}
+.panel .key{padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.06);font-size:.88rem}
+.panel .accent{color:#7dd3fc}
+.side{display:flex;flex-direction:column;gap:14px}
+.card{background:rgba(4,9,16,.72);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:18px;box-shadow:0 16px 40px rgba(0,0,0,.18)}
+.card h2{font-size:1rem;margin-bottom:10px}
+.stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.stat{padding:12px;border-radius:16px;background:rgba(255,255,255,.05)}
+.stat .label{font-size:.75rem;color:rgba(255,255,255,.58);margin-bottom:4px}
+.stat .value{font-size:1.2rem;font-weight:700}
+.desc{font-size:.9rem;line-height:1.7;color:rgba(238,246,255,.78)}
+.hint{font-size:.86rem;line-height:1.7;color:rgba(238,246,255,.8)}
+@media (max-width:980px){.shell{grid-template-columns:1fr}.side{order:-1}.stage{min-height:60vh}}
+@media (max-width:640px){.shell{padding:12px;gap:12px}.top-bar{padding:10px 12px}.panel{padding:18px}.panel h1{font-size:1.6rem}.panel .keys{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <a class="back-btn" href="../index.html">← 返回</a>
+  <span class="game-title">✈️ 飞行模拟器</span>
+</div>
+<div class="shell">
+  <div class="stage">
+    <canvas id="game"></canvas>
+    <div class="overlay">
+      <div class="panel" id="intro">
+        <h1>低空穿环训练</h1>
+        <p>这是一个纯静态网页飞行模拟器原型。控制姿态、管理油门，沿着山谷连续穿过检查环，避免撞地失速。</p>
+        <div class="keys">
+          <div class="key"><span class="accent">W / S</span> 俯冲 / 拉升</div>
+          <div class="key"><span class="accent">A / D</span> 左右滚转</div>
+          <div class="key"><span class="accent">↑ / ↓</span> 增减油门</div>
+          <div class="key"><span class="accent">R</span> 重新开始</div>
+        </div>
+        <p>点击画面或按任意控制键开始。</p>
+      </div>
+      <div class="panel hidden" id="gameOver">
+        <h1>飞行结束</h1>
+        <p id="gameOverText"></p>
+        <p>按 <span class="accent">R</span> 重新开始，再试一次更流畅的进近。</p>
+      </div>
+    </div>
+  </div>
+  <aside class="side">
+    <section class="card">
+      <h2>飞行数据</h2>
+      <div class="stat-grid">
+        <div class="stat"><div class="label">速度</div><div class="value" id="speedStat">0 kt</div></div>
+        <div class="stat"><div class="label">高度</div><div class="value" id="altStat">0 m</div></div>
+        <div class="stat"><div class="label">油门</div><div class="value" id="throttleStat">0%</div></div>
+        <div class="stat"><div class="label">得分</div><div class="value" id="scoreStat">0</div></div>
+      </div>
+    </section>
+    <section class="card">
+      <h2>任务说明</h2>
+      <p class="desc">每穿过一个蓝色检查环可获得 100 分，并生成新的航路点。保持 140 到 220 节最稳定，滚转过大时转向更快，但也更容易掉高度。</p>
+    </section>
+    <section class="card">
+      <h2>控制提示</h2>
+      <p class="hint">地平线会跟随姿态倾斜，中央准星用于修正飞行路径。速度过低会接近失速，贴地时请提前拉起机头。</p>
+    </section>
+  </aside>
+</div>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+const introEl = document.getElementById('intro');
+const gameOverEl = document.getElementById('gameOver');
+const gameOverTextEl = document.getElementById('gameOverText');
+
+const speedStatEl = document.getElementById('speedStat');
+const altStatEl = document.getElementById('altStat');
+const throttleStatEl = document.getElementById('throttleStat');
+const scoreStatEl = document.getElementById('scoreStat');
+
+const keys = new Set();
+let started = false;
+let crashed = false;
+let score = 0;
+let best = Number(localStorage.getItem('flight_sim_best') || 0);
+let rings = [];
+let lastFrame = 0;
+let crashEffect = createCrashEffect();
+
+const plane = {
+  x: 0,
+  y: 180,
+  z: 0,
+  heading: 0,
+  pitch: 0,
+  roll: 0,
+  speed: 150,
+  throttle: 0.62,
+  verticalVelocity: 0,
+};
+
+function createCrashEffect() {
+  return {
+    active: false,
+    time: 0,
+    duration: 1.4,
+    originX: 0,
+    originY: 0,
+    fragments: [],
+  };
+}
+
+function terrainHeight(x, z) {
+  return 24 * Math.sin(x * 0.011) + 18 * Math.cos(z * 0.008) + 36 * Math.sin((x + z) * 0.003) + 18;
+}
+
+function resize() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = Math.max(960, Math.floor(rect.width * window.devicePixelRatio));
+  canvas.height = Math.max(540, Math.floor(rect.height * window.devicePixelRatio));
+}
+
+function spawnRing(distance = 950) {
+  const lastRing = rings[rings.length - 1];
+  const baseHeading = lastRing ? lastRing.heading : plane.heading;
+  const heading = baseHeading + (Math.random() - 0.5) * 0.65;
+  const offsetDistance = distance + Math.random() * 280;
+  const originX = lastRing ? lastRing.x : plane.x;
+  const originZ = lastRing ? lastRing.z : plane.z;
+  const x = originX + Math.sin(heading) * offsetDistance;
+  const z = originZ + Math.cos(heading) * offsetDistance;
+  const floor = terrainHeight(x, z);
+  rings.push({
+    x,
+    y: floor + 130 + Math.random() * 90,
+    z,
+    radius: 54,
+    heading,
+  });
+}
+
+function resetGame() {
+  plane.x = 0;
+  plane.y = 180;
+  plane.z = 0;
+  plane.heading = 0;
+  plane.pitch = 0;
+  plane.roll = 0;
+  plane.speed = 150;
+  plane.throttle = 0.62;
+  plane.verticalVelocity = 0;
+  score = 0;
+  crashed = false;
+  crashEffect = createCrashEffect();
+  rings = [];
+  for (let index = 0; index < 6; index += 1) {
+    spawnRing(700 + index * 150);
+  }
+  introEl.classList.remove('hidden');
+  gameOverEl.classList.add('hidden');
+  updateStats();
+}
+
+function startGame() {
+  if (started && !crashed) return;
+  started = true;
+  crashed = false;
+  crashEffect.active = false;
+  introEl.classList.add('hidden');
+  gameOverEl.classList.add('hidden');
+}
+
+function triggerCrashEffect(kind) {
+  const baseY = kind === 'terrain' ? canvas.height * 0.68 : canvas.height * 0.55;
+  crashEffect = {
+    active: true,
+    time: 0,
+    duration: kind === 'terrain' ? 1.6 : 1.2,
+    originX: canvas.width * 0.5,
+    originY: baseY + plane.pitch * canvas.height * 0.08,
+    fragments: Array.from({ length: 22 }, (_, index) => {
+      const spread = (Math.PI * 2 * index) / 22 + Math.random() * 0.35;
+      const speed = 120 + Math.random() * 240;
+      return {
+        angle: spread,
+        speed,
+        size: 6 + Math.random() * 14,
+        drift: (Math.random() - 0.5) * 24,
+      };
+    }),
+  };
+}
+
+function endGame(reason, kind = 'generic') {
+  crashed = true;
+  if (kind === 'terrain' || kind === 'stall') {
+    triggerCrashEffect(kind);
+  }
+  if (score > best) {
+    best = score;
+    localStorage.setItem('flight_sim_best', String(best));
+  }
+  gameOverTextEl.textContent = reason + ' 本次得分 ' + score + '，最高分 ' + best + '。';
+  gameOverEl.classList.remove('hidden');
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function update(dt) {
+  if (!started || crashed) return;
+
+  const pitchInput = (keys.has('KeyS') ? 1 : 0) - (keys.has('KeyW') ? 1 : 0);
+  const rollInput = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
+  const throttleInput = (keys.has('ArrowUp') ? 1 : 0) - (keys.has('ArrowDown') ? 1 : 0);
+
+  plane.throttle = clamp(plane.throttle + throttleInput * dt * 0.32, 0.25, 1);
+  const targetSpeed = 110 + plane.throttle * 150;
+  plane.speed += (targetSpeed - plane.speed) * dt * 1.5;
+
+  plane.pitch = clamp(plane.pitch + pitchInput * dt * 0.9, -0.65, 0.7);
+  plane.roll = clamp(plane.roll + rollInput * dt * 1.4, -1.15, 1.15);
+
+  plane.pitch *= 1 - dt * 0.9;
+  plane.roll *= 1 - dt * 1.15;
+
+  plane.heading += plane.roll * dt * (0.55 + plane.speed / 260) * 0.75;
+
+  const lift = (plane.speed - 95) * 0.012;
+  const climbForce = plane.pitch * plane.speed * 0.42 + lift - Math.abs(plane.roll) * 12;
+  plane.verticalVelocity += (climbForce - plane.verticalVelocity) * dt * 2.4;
+  plane.y += plane.verticalVelocity * dt * 18;
+
+  const forward = plane.speed * dt * 4.2;
+  plane.x += Math.sin(plane.heading) * forward;
+  plane.z += Math.cos(plane.heading) * forward;
+
+  const floor = terrainHeight(plane.x, plane.z);
+  if (plane.y <= floor + 10) {
+    plane.y = floor + 10;
+    endGame('飞机撞上地形。', 'terrain');
+  } else if (plane.speed < 105 && plane.pitch > 0.35) {
+    endGame('速度过低导致失速。', 'stall');
+  }
+
+  const nextRing = rings[0];
+  if (nextRing) {
+    const dx = plane.x - nextRing.x;
+    const dy = plane.y - nextRing.y;
+    const dz = plane.z - nextRing.z;
+    const distance = Math.hypot(dx, dy, dz);
+    if (distance < nextRing.radius + 18) {
+      score += 100;
+      rings.shift();
+      spawnRing();
+    } else if (Math.hypot(nextRing.x - plane.x, nextRing.z - plane.z) < 60 && Math.abs(dy) > nextRing.radius) {
+      score = Math.max(0, score - 25);
+    }
+  }
+
+  while (rings.length < 6) {
+    spawnRing();
+  }
+
+  updateStats();
+}
+
+function worldToCamera(x, y, z) {
+  const dx = x - plane.x;
+  const dy = y - plane.y;
+  const dz = z - plane.z;
+  const sinH = Math.sin(-plane.heading);
+  const cosH = Math.cos(-plane.heading);
+  const rx = dx * cosH - dz * sinH;
+  const rz = dx * sinH + dz * cosH;
+  const sinP = Math.sin(-plane.pitch * 0.7);
+  const cosP = Math.cos(-plane.pitch * 0.7);
+  const ry = dy * cosP - rz * sinP;
+  const rz2 = dy * sinP + rz * cosP;
+  return { x: rx, y: ry, z: rz2 };
+}
+
+function project(point) {
+  if (point.z < 20) return null;
+  const width = canvas.width;
+  const height = canvas.height;
+  const focal = width * 0.62;
+  let sx = width * 0.5 + (point.x / point.z) * focal;
+  let sy = height * 0.5 + (point.y / point.z) * focal;
+  const roll = plane.roll * 0.75;
+  const dx = sx - width * 0.5;
+  const dy = sy - height * 0.5;
+  sx = width * 0.5 + dx * Math.cos(roll) - dy * Math.sin(roll);
+  sy = height * 0.5 + dx * Math.sin(roll) + dy * Math.cos(roll);
+  return { x: sx, y: sy, scale: focal / point.z, depth: point.z };
+}
+
+function drawBackground() {
+  const w = canvas.width;
+  const h = canvas.height;
+  const cx = w * 0.5;
+  const cy = h * 0.5 + plane.pitch * h * 0.22;
+
+  const sky = ctx.createLinearGradient(0, 0, 0, h);
+  sky.addColorStop(0, '#5bc4ff');
+  sky.addColorStop(0.55, '#113766');
+  sky.addColorStop(1, '#07111d');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(plane.roll * 0.8);
+  const ground = ctx.createLinearGradient(0, 0, 0, h);
+  ground.addColorStop(0, '#1f4d34');
+  ground.addColorStop(0.6, '#183124');
+  ground.addColorStop(1, '#0a120f');
+  ctx.fillStyle = ground;
+  ctx.fillRect(-w, 0, w * 2, h);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(-w, 0);
+  ctx.lineTo(w, 0);
+  ctx.stroke();
+  ctx.restore();
+
+  for (let index = 0; index < 80; index += 1) {
+    const x = (index * 173) % w;
+    const y = ((index * 97) % (h * 0.45)) + 20;
+    const alpha = 0.18 + (index % 5) * 0.03;
+    ctx.fillStyle = 'rgba(255,255,255,' + alpha + ')';
+    ctx.fillRect(x, y, 2, 2);
+  }
+}
+
+function drawTerrain() {
+  ctx.lineWidth = 1;
+  for (let depth = 160; depth < 2400; depth += 140) {
+    const alpha = 1 - depth / 2600;
+    ctx.strokeStyle = 'rgba(87,200,123,' + (alpha * 0.45) + ')';
+    ctx.beginPath();
+    let moved = false;
+    for (let lateral = -700; lateral <= 700; lateral += 70) {
+      const worldX = plane.x + Math.cos(plane.heading) * lateral + Math.sin(plane.heading) * depth;
+      const worldZ = plane.z - Math.sin(plane.heading) * lateral + Math.cos(plane.heading) * depth;
+      const worldY = terrainHeight(worldX, worldZ);
+      const projected = project(worldToCamera(worldX, worldY, worldZ));
+      if (!projected) continue;
+      if (!moved) {
+        ctx.moveTo(projected.x, projected.y);
+        moved = true;
+      } else {
+        ctx.lineTo(projected.x, projected.y);
+      }
+    }
+    ctx.stroke();
+  }
+
+  for (let lateral = -560; lateral <= 560; lateral += 120) {
+    ctx.strokeStyle = 'rgba(70,168,96,.2)';
+    ctx.beginPath();
+    let moved = false;
+    for (let depth = 160; depth < 2400; depth += 110) {
+      const worldX = plane.x + Math.cos(plane.heading) * lateral + Math.sin(plane.heading) * depth;
+      const worldZ = plane.z - Math.sin(plane.heading) * lateral + Math.cos(plane.heading) * depth;
+      const worldY = terrainHeight(worldX, worldZ);
+      const projected = project(worldToCamera(worldX, worldY, worldZ));
+      if (!projected) continue;
+      if (!moved) {
+        ctx.moveTo(projected.x, projected.y);
+        moved = true;
+      } else {
+        ctx.lineTo(projected.x, projected.y);
+      }
+    }
+    ctx.stroke();
+  }
+}
+
+function drawRing(ring, index) {
+  const center = project(worldToCamera(ring.x, ring.y, ring.z));
+  if (!center) return;
+  const radius = ring.radius * center.scale;
+  if (radius < 3) return;
+
+  ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.rotate(-plane.roll * 0.45 + index * 0.03);
+  ctx.strokeStyle = index === 0 ? '#7dd3fc' : 'rgba(125,211,252,.45)';
+  ctx.lineWidth = Math.max(2, radius * 0.12);
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,.18)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius * 1.28, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawHUD() {
+  const w = canvas.width;
+  const h = canvas.height;
+
+  ctx.strokeStyle = 'rgba(255,255,255,.75)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(w * 0.5 - 18, h * 0.5);
+  ctx.lineTo(w * 0.5 + 18, h * 0.5);
+  ctx.moveTo(w * 0.5, h * 0.5 - 18);
+  ctx.lineTo(w * 0.5, h * 0.5 + 18);
+  ctx.stroke();
+
+  const horizonY = h * 0.5 + plane.pitch * h * 0.16;
+  ctx.strokeStyle = 'rgba(255,255,255,.35)';
+  ctx.beginPath();
+  ctx.moveTo(w * 0.5 - 90, horizonY);
+  ctx.lineTo(w * 0.5 - 30, horizonY);
+  ctx.moveTo(w * 0.5 + 30, horizonY);
+  ctx.lineTo(w * 0.5 + 90, horizonY);
+  ctx.stroke();
+
+  ctx.font = '600 22px sans-serif';
+  ctx.fillStyle = '#eff6ff';
+  ctx.fillText(String(score).padStart(4, '0'), 34, 42);
+  ctx.font = '500 15px sans-serif';
+  ctx.fillStyle = 'rgba(239,246,255,.8)';
+  ctx.fillText('BEST ' + String(best).padStart(4, '0'), 34, 68);
+
+  const throttleBarHeight = h * 0.3;
+  const throttleY = h * 0.5 + throttleBarHeight * 0.5;
+  ctx.strokeStyle = 'rgba(255,255,255,.25)';
+  ctx.strokeRect(w - 48, throttleY - throttleBarHeight, 16, throttleBarHeight);
+  ctx.fillStyle = '#7dd3fc';
+  ctx.fillRect(w - 47, throttleY - throttleBarHeight * plane.throttle, 14, throttleBarHeight * plane.throttle);
+}
+
+function drawCrashEffect() {
+  if (!crashEffect.active) return;
+
+  const progress = Math.min(1, crashEffect.time / crashEffect.duration);
+  const flashRadius = 36 + progress * 160;
+  const smokeRadius = 22 + progress * 120;
+
+  ctx.save();
+
+  const flash = ctx.createRadialGradient(
+    crashEffect.originX,
+    crashEffect.originY,
+    0,
+    crashEffect.originX,
+    crashEffect.originY,
+    flashRadius
+  );
+  flash.addColorStop(0, 'rgba(255,244,214,' + (0.9 - progress * 0.6) + ')');
+  flash.addColorStop(0.28, 'rgba(255,159,64,' + (0.8 - progress * 0.55) + ')');
+  flash.addColorStop(0.6, 'rgba(239,68,68,' + (0.45 - progress * 0.3) + ')');
+  flash.addColorStop(1, 'rgba(239,68,68,0)');
+  ctx.fillStyle = flash;
+  ctx.beginPath();
+  ctx.arc(crashEffect.originX, crashEffect.originY, flashRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(255,255,255,' + (0.2 - progress * 0.16) + ')';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  crashEffect.fragments.forEach(fragment => {
+    const fragmentTravel = fragment.speed * progress;
+    const fragmentX = crashEffect.originX + Math.cos(fragment.angle) * fragmentTravel;
+    const fragmentY = crashEffect.originY + Math.sin(fragment.angle) * fragmentTravel + progress * progress * 120 + fragment.drift;
+    const alpha = Math.max(0, 0.9 - progress * 1.1);
+    ctx.fillStyle = 'rgba(255,208,115,' + alpha + ')';
+    ctx.beginPath();
+    ctx.ellipse(fragmentX, fragmentY, fragment.size * (1 - progress * 0.55), fragment.size * 0.45, fragment.angle, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  const smoke = ctx.createRadialGradient(
+    crashEffect.originX,
+    crashEffect.originY + progress * 36,
+    0,
+    crashEffect.originX,
+    crashEffect.originY + progress * 36,
+    smokeRadius
+  );
+  smoke.addColorStop(0, 'rgba(32,32,32,' + (0.35 - progress * 0.15) + ')');
+  smoke.addColorStop(1, 'rgba(32,32,32,0)');
+  ctx.fillStyle = smoke;
+  ctx.beginPath();
+  ctx.arc(crashEffect.originX, crashEffect.originY + progress * 36, smokeRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function draw() {
+  drawBackground();
+  drawTerrain();
+  rings.forEach((ring, index) => drawRing(ring, index));
+  drawCrashEffect();
+  drawHUD();
+}
+
+function updateStats() {
+  speedStatEl.textContent = Math.round(plane.speed) + ' kt';
+  altStatEl.textContent = Math.max(0, Math.round(plane.y - terrainHeight(plane.x, plane.z))) + ' m';
+  throttleStatEl.textContent = Math.round(plane.throttle * 100) + '%';
+  scoreStatEl.textContent = String(score);
+}
+
+function frame(timestamp) {
+  if (!lastFrame) lastFrame = timestamp;
+  const dt = Math.min(0.033, (timestamp - lastFrame) / 1000);
+  lastFrame = timestamp;
+  if (crashEffect.active) {
+    crashEffect.time = Math.min(crashEffect.duration, crashEffect.time + dt);
+  }
+  update(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+
+window.addEventListener('resize', resize);
+
+document.addEventListener('keydown', event => {
+  keys.add(event.code);
+  if ([ 'ArrowUp', 'ArrowDown', 'Space' ].includes(event.code)) {
+    event.preventDefault();
+  }
+  if ([ 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown' ].includes(event.code)) {
+    startGame();
+  }
+  if (event.code === 'KeyR') {
+    resetGame();
+    started = true;
+    introEl.classList.add('hidden');
+  }
+});
+
+document.addEventListener('keyup', event => {
+  keys.delete(event.code);
+});
+
+canvas.addEventListener('pointerdown', () => {
+  startGame();
+  canvas.focus();
+});
+
+resize();
+resetGame();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
